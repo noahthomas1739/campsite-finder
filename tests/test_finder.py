@@ -2,7 +2,7 @@ import unittest
 from datetime import date
 from unittest import mock
 
-from campsite_finder import cli, geo, recgov
+from campsite_finder import cli, geo, recgov, texas
 
 
 def availability(pairs):
@@ -94,6 +94,19 @@ class GeoTest(unittest.TestCase):
         self.assertGreater(lon, -83.0)
 
 
+class TexasTest(unittest.TestCase):
+    def test_two_hours_east_of_dallas(self):
+        lat, lon = geo.destination_point(32.7767, -96.797, 90, 100)
+        names = [p.name for p in texas.parks_near(lat, lon, 60, geo.haversine_mi)]
+        self.assertIn("Tyler State Park", names)
+        self.assertIn("Lake Tawakoni State Park", names)
+        self.assertNotIn("Cedar Hill State Park", names)
+
+    def test_links(self):
+        for p in texas.PARKS:
+            self.assertIn(f"parkId={p.park_id}", p.url)
+
+
 class EndToEndTest(unittest.TestCase):
     def test_main_prints_hits(self):
         search = {"total": 1, "results": [
@@ -110,6 +123,7 @@ class EndToEndTest(unittest.TestCase):
         self.assertIn("Pine Lake", out)
         self.assertIn("site A01", out)
         self.assertNotIn("A02", out)
+        self.assertNotIn("State Park", out)  # (40, -79) is nowhere near Texas
 
 
 if __name__ == "__main__":

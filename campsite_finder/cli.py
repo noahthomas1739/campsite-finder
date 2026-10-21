@@ -9,7 +9,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
-from . import geo, recgov
+from . import geo, recgov, texas
 
 
 def parse_args(argv=None):
@@ -37,6 +37,8 @@ def parse_args(argv=None):
     what.add_argument("--electric", action="store_true", help="Only sites with an electric hookup")
     what.add_argument("--max-campgrounds", type=int, default=60, help="Max campgrounds to check (default: 60)")
     what.add_argument("--show-sites", type=int, default=5, help="Sites to list per campground (default: 5)")
+    what.add_argument("--no-state-parks", action="store_true",
+                      help="Don't list Texas State Parks booking links")
     what.add_argument("--workers", type=int, default=4, help="Parallel requests (be polite; default: 4)")
     args = p.parse_args(argv)
 
@@ -97,6 +99,9 @@ def main(argv=None):
     hits = sorted((r for r in results if r.sites), key=lambda r: r.distance_mi)
     errors = [r for r in results if r.error]
     print_results(hits, check_in, check_out, args.show_sites)
+    if not args.no_state_parks:
+        parks = texas.parks_near(c_lat, c_lon, radius, geo.haversine_mi, electric_only=args.electric)
+        print_state_parks(parks, o_lat, o_lon, check_in, check_out)
     if errors:
         print(f"\n({len(errors)} campground(s) could not be checked: "
               + ", ".join(r.campground.name for r in errors[:5])
@@ -107,7 +112,7 @@ def main(argv=None):
 def print_results(hits, check_in, check_out, show_sites):
     if not hits:
         print("\nNo campgrounds with availability for every night of that stay. "
-              "Try --radius 60, a different --direction, or fewer --nights.")
+              "Try a bigger --radius, a different --direction, or fewer --nights.")
         return
     nights = (check_out - check_in).days
     print(f"\n{len(hits)} campground(s) with sites open all {nights} night(s):\n")
@@ -122,6 +127,18 @@ def print_results(hits, check_in, check_out, show_sites):
         if len(r.sites) > show_sites:
             print(f"    ... and {len(r.sites) - show_sites} more")
         print()
+
+
+def print_state_parks(parks, o_lat, o_lon, check_in, check_out):
+    if not parks:
+        return
+    nights = (check_out - check_in).days
+    print(f"Texas State Parks in the area. Availability isn't checked automatically; open the link,\n"
+          f"enter {check_in:%m/%d/%Y} for {nights} night(s), and filter by site type:\n")
+    by_distance = sorted((geo.haversine_mi(o_lat, o_lon, p.lat, p.lon), p) for p in parks)
+    for d, p in by_distance:
+        print(f"{p.name}  ({d:.0f} mi straight-line{'; ' + p.notes if p.notes else ''})")
+        print(f"  {p.url}\n")
 
 
 if __name__ == "__main__":

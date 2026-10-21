@@ -29,6 +29,21 @@ Pine Lake  (104 mi straight-line; Somewhere, PA)
 
 Click the link and book. Availability changes fast, so book soon after you find a site.
 
+## DFW: about 2 hours east
+
+```bash
+python -m campsite_finder --from "Dallas, TX" --direction east --radius 60 --electric
+```
+
+A 60-mile radius around the point about 100 miles east of Dallas covers the I-20 and I-30 corridors:
+
+- **Recreation.gov (live availability is checked):** Army Corps of Engineers lakes in range, such as
+  Jim Chapman (Cooper) Lake and Lake O' the Pines.
+- **Texas State Parks (booking links only):** Lake Tawakoni, Cooper Lake (South Sulphur and
+  Doctors Creek), Tyler, Lake Bob Sandlin, and Daingerfield. Add `--radius 75` to include Purtis Creek.
+
+If you're starting from Fort Worth, use `--from "Fort Worth, TX"` and the drive math shifts accordingly.
+
 ## Options
 
 | Flag | Default | Meaning |
@@ -43,6 +58,7 @@ Click the link and book. Availability changes fast, so book soon after you find 
 | `--electric` | off | Only sites with an electric hookup |
 | `--max-campgrounds` | 60 | Cap on campgrounds checked |
 | `--show-sites` | 5 | Sites listed per campground |
+| `--no-state-parks` | off | Hide the Texas State Parks links |
 
 The exit code is 0 when something is found and 1 when nothing is, so you can
 run it from cron as an alert.
@@ -57,11 +73,14 @@ run it from cron as an alert.
   driving time.
 - Electric sites are found from recreation.gov's site type (`STANDARD
   ELECTRIC`, `RV ELECTRIC`, ...).
-- **Coverage:** this covers recreation.gov only. That includes federal sites
-  such as National Forests, Army Corps of Engineers lakes, and National Parks.
-  Most **state parks** book through other systems (ReserveAmerica/Aspira,
-  Tyler/Brandt, and others). They aren't covered yet. The provider module
-  layout (`campsite_finder/recgov.py`) is meant to make adding them easy.
+- **Coverage:** live availability is checked for recreation.gov only. That
+  includes federal sites such as National Forests, Army Corps of Engineers
+  lakes, and National Parks.
+- **Texas State Parks** book through texasstateparks.reserveamerica.com. That
+  site has no public availability API, so `campsite_finder/texas.py` keeps a
+  list of East Texas and DFW-area parks and prints a booking link for each one
+  in your search area. Availability isn't checked. To add a park, copy the
+  `parkId=` number from its ReserveAmerica page into `PARKS`.
 
 ## Tests
 
