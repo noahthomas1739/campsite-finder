@@ -1,3 +1,5 @@
+import json
+import os
 import unittest
 from datetime import date
 from unittest import mock
@@ -94,6 +96,28 @@ class GeoTest(unittest.TestCase):
         self.assertGreater(lon, -83.0)
 
 
+SAMPLE = os.path.join(os.path.dirname(__file__), "..", "samples", "reserveamerica", "explore_page.html")
+
+
+def ra_page(records, total_pages=1, any_available=True):
+    state = {"backend": {"productSearch": {"searchResults": {
+        "totalPages": total_pages, "records": records,
+        "summary": {"atLeastOneSiteAvailable": any_available}}}}}
+    return f'<html><script type="application/json" id="initialState">{json.dumps(state)}</script></html>'
+
+
+def ra_record(name, group, statuses, amps=None, use="NIGHTLY"):
+    attrs = [{"name": "Electricity Hookup", "value": [amps]}] if amps else []
+    return {
+        "name": name, "prodGrpName": group, "prodInfo": {"typeOfUse": use},
+        "details": {"loopName": "BIG PINE", "ratesStartingFrom": "$25.00", "attributes": attrs},
+        "availabilityGrid": [{"date": d, "status": st} for d, st in statuses],
+    }
+
+
+FRI_SAT = [("2026-10-23", "AVAILABLE"), ("2026-10-24", "AVAILABLE")]
+
+
 class TexasTest(unittest.TestCase):
     def test_two_hours_east_of_dallas(self):
         lat, lon = geo.destination_point(32.7767, -96.797, 90, 100)
@@ -102,9 +126,54 @@ class TexasTest(unittest.TestCase):
         self.assertIn("Lake Tawakoni State Park", names)
         self.assertNotIn("Cedar Hill State Park", names)
 
-    def test_links(self):
-        for p in texas.PARKS:
-            self.assertIn(f"parkId={p.park_id}", p.url)
+    def test_real_tyler_page(self):
+        """Captured Tyler SP page for Fri Oct 23, 2026: 127 sites, none open that night."""
+        with open(SAMPLE, encoding="utf-8") as f:
+            results = texas.parse_search_page(f.read())
+        self.assertEqual(results["totalRecords"], 127)
+        self.assertEqual(len(results["records"]), 20)
+        rec = results["records"][0]
+        self.assertTrue(texas.is_electric(rec))
+        self.assertEqual(texas._attribute(rec, "Electricity Hookup"), "50")
+        self.assertEqual(texas.open_sites(results["records"], date(2026, 10, 23), date(2026, 10, 24)), [])
+
+    def test_real_page_short_circuits_when_full(self):
+        with open(SAMPLE, encoding="utf-8") as f:
+            page = f.read()
+        fetch = mock.Mock(return_value=page)
+        park = texas.PARKS[4]
+        sites = texas.available_sites(park, date(2026, 10, 23), date(2026, 10, 24), fetch=fetch, delay=0)
+        self.assertEqual(sites, [])
+        self.assertEqual(fetch.call_count, 1)
+        self.assertIn("arrivalDate=2026-10-23&lengthOfStay=1&pageNumber=0", fetch.call_args[0][0])
+
+    def test_open_electric_sites_across_pages(self):
+        page0 = ra_page([
+            ra_record("A1", "Campsite Electric", FRI_SAT, amps="30"),
+            ra_record("A2", "Campsite with Water", FRI_SAT),
+            ra_record("A3", "Campsite Full Hookup", [("2026-10-23", "AVAILABLE"), ("2026-10-24", "RESERVED")]),
+        ], total_pages=2)
+        page1 = ra_page([
+            ra_record("B1", "Campsite Full Hookup", FRI_SAT, amps="50"),
+            ra_record("B2", "Pavilion", FRI_SAT, amps="20", use="DAY"),
+        ], total_pages=2)
+        fetch = mock.Mock(side_effect=[page0, page1])
+        sites = texas.available_sites(texas.PARKS[0], date(2026, 10, 23), date(2026, 10, 25),
+                                      electric_only=True, fetch=fetch, delay=0)
+        self.assertEqual([s.name for s in sites], ["A1", "B1"])
+        self.assertEqual(sites[1].electric_amps, "50")
+        self.assertEqual(sites[0].loop, "Big Pine")
+        self.assertIn("pageNumber=1", fetch.call_args_list[1][0][0])
+
+    def test_electric_detection(self):
+        self.assertTrue(texas.is_electric(ra_record("x", "Campsite with Water", [], amps="30")))
+        self.assertFalse(texas.is_electric(ra_record("x", "Campsite with Water", [])))
+        self.assertFalse(texas.is_electric(ra_record("x", "Cabin", [], amps="30")))
+        self.assertFalse(texas.is_electric(ra_record("x", "Campsite Nonelectric", [])))
+
+    def test_blocked_page_raises(self):
+        with self.assertRaises(ValueError):
+            texas.parse_search_page("<html>Please verify you are a human</html>")
 
 
 class EndToEndTest(unittest.TestCase):
@@ -116,6 +185,7 @@ class EndToEndTest(unittest.TestCase):
             return search if path == "/api/search" else OCT
 
         with mock.patch.object(recgov, "_get_json", side_effect=fake), \
+                mock.patch.object(texas, "_fetch") as ra, \
                 mock.patch("builtins.print") as p:
             rc = cli.main(["--lat", "40", "--lon", "-81", "--start", "2026-10-23", "--electric"])
         out = "\n".join(str(c.args[0]) for c in p.call_args_list if c.args)
@@ -124,6 +194,22 @@ class EndToEndTest(unittest.TestCase):
         self.assertIn("site A01", out)
         self.assertNotIn("A02", out)
         self.assertNotIn("State Park", out)  # (40, -79) is nowhere near Texas
+        ra.assert_not_called()
+
+    def test_main_checks_state_parks(self):
+        def fake(path, params=None):
+            return {"total": 0, "results": []}
+
+        page = ra_page([ra_record("T7", "Campsite Electric", [("2026-10-23", "AVAILABLE")], amps="30")])
+        with mock.patch.object(recgov, "_get_json", side_effect=fake), \
+                mock.patch.object(texas, "_fetch", return_value=page), \
+                mock.patch("builtins.print") as p:
+            rc = cli.main(["--lat", "32.7767", "--lon", "-96.797", "--radius", "60",
+                           "--start", "2026-10-23", "--nights", "1", "--electric"])
+        out = "\n".join(str(c.args[0]) for c in p.call_args_list if c.args)
+        self.assertEqual(rc, 0)
+        self.assertIn("Lake Tawakoni State Park", out)
+        self.assertIn("site T7: Campsite Electric, 30 amp", out)
 
 
 if __name__ == "__main__":

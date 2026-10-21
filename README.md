@@ -39,8 +39,11 @@ A 60-mile radius around the point about 100 miles east of Dallas covers the I-20
 
 - **Recreation.gov (live availability is checked):** Army Corps of Engineers lakes in range, such as
   Jim Chapman (Cooper) Lake and Lake O' the Pines.
-- **Texas State Parks (booking links only):** Lake Tawakoni, Cooper Lake (South Sulphur and
-  Doctors Creek), Tyler, Lake Bob Sandlin, and Daingerfield. Add `--radius 75` to include Purtis Creek.
+- **Texas State Parks (live availability is checked):** Lake Tawakoni, Cooper Lake (South Sulphur
+  and Doctors Creek), Tyler, Lake Bob Sandlin, and Daingerfield. Add `--radius 75` to include
+  Purtis Creek.
+
+For Friday night only, add `--nights 1`.
 
 If you're starting from Fort Worth, use `--from "Fort Worth, TX"` and the drive math shifts accordingly.
 
@@ -58,7 +61,7 @@ If you're starting from Fort Worth, use `--from "Fort Worth, TX"` and the drive 
 | `--electric` | off | Only sites with an electric hookup |
 | `--max-campgrounds` | 60 | Cap on campgrounds checked |
 | `--show-sites` | 5 | Sites listed per campground |
-| `--no-state-parks` | off | Hide the Texas State Parks links |
+| `--no-state-parks` | off | Skip checking Texas State Parks |
 
 The exit code is 0 when something is found and 1 when nothing is, so you can
 run it from cron as an alert.
@@ -76,11 +79,14 @@ run it from cron as an alert.
 - **Coverage:** live availability is checked for recreation.gov only. That
   includes federal sites such as National Forests, Army Corps of Engineers
   lakes, and National Parks.
-- **Texas State Parks** book through texasstateparks.reserveamerica.com. That
-  site has no public availability API, so `campsite_finder/texas.py` keeps a
-  list of East Texas and DFW-area parks and prints a booking link for each one
-  in your search area. Availability isn't checked. To add a park, copy the
-  `parkId=` number from its ReserveAmerica page into `PARKS`.
+- **Texas State Parks** book through ReserveAmerica, which has no public API.
+  Its campsite search page (`reserveamerica.com/explore/<park>/TX/<id>/campsites`)
+  embeds its results as JSON, including each site's type, hookups and nightly
+  availability. `campsite_finder/texas.py` reads that JSON, 20 sites per page.
+  This is scraping, so it breaks if ReserveAmerica changes its page. When that
+  happens, run `python3 tools/capture_reserveamerica.py` to save fresh pages.
+  `campsite_finder/texas.py` keeps a list of East Texas and DFW-area parks. To
+  add one, copy the `parkId=` number from its ReserveAmerica page into `PARKS`.
 
 ## Tests
 
