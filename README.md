@@ -29,37 +29,40 @@ Pine Lake  (104 mi straight-line; Somewhere, PA)
 
 Click the link and book. Availability changes fast, so book soon after you find a site.
 
-## DFW: about 2 hours east
+## Grapevine / DFW: anywhere within 2 hours, to the east
 
 ```bash
-python -m campsite_finder --from "Dallas, TX" --direction east --radius 60 --electric
+python3 -m campsite_finder --from "Grapevine, TX" --electric
 ```
 
-A 60-mile radius around the point about 100 miles east of Dallas covers the I-20 and I-30 corridors:
+This searches everything **from your doorstep out to about 2 hours' drive**, and keeps only places
+**northeast through southeast** of you. Places 30 minutes away count too. Add `--nights 1` for
+Friday night only.
 
-- **Recreation.gov (live availability is checked):** Army Corps of Engineers lakes in range, such as
-  Jim Chapman (Cooper) Lake and Lake O' the Pines.
-- **Texas State Parks (live availability is checked):** Lake Tawakoni, Cooper Lake (South Sulphur
-  and Doctors Creek), Tyler, Lake Bob Sandlin, and Daingerfield. Add `--radius 75` to include
-  Purtis Creek.
+From Grapevine, that covers:
 
-For Friday night only, add `--nights 1`.
+- **Texas State Parks:** Lake Tawakoni (~63 mi), Purtis Creek (~75 mi), Cooper Lake (both units,
+  ~85 mi), and Tyler (~109 mi).
+- **Recreation.gov:** Army Corps of Engineers lakes to the east, such as Lavon Lake and Jim
+  Chapman Lake.
 
-If you're starting from Fort Worth, use `--from "Fort Worth, TX"` and the drive math shifts accordingly.
+It leaves out Lake Texoma (north), Cedar Hill (south), and the parks past Tyler. Lake Bob
+Sandlin, Daingerfield, and Lake O' the Pines are 2¼ hours or more. To include them, add
+`--drive-hours 2.5`.
 
 ## Options
 
 | Flag | Default | Meaning |
 |---|---|---|
 | `--from "City, ST"` / `--lat --lon` | required | Where you're starting |
-| `--drive-hours` | 2 | How far you want to go |
-| `--mph` | 50 | Average straight-line progress per hour. Lower it for mountain roads |
-| `--direction` | east | north, ne, east, se, south, sw, west, nw, or `any` (a circle around you) |
-| `--radius` | 40 | Miles to search around the target point |
+| `--drive-hours` | 2 | Furthest you're willing to drive. Anything closer counts too |
+| `--mph` | 55 | Straight-line miles per hour of driving, used to turn hours into miles |
+| `--direction` | east | Only places this way from you: north, ne, east, se, south, sw, west, nw, or `any` |
+| `--spread` | 60 | Degrees either side of the direction. 60 means NE through SE for east |
 | `--start` | this Friday | Check-in date `YYYY-MM-DD` |
 | `--nights` | through Sunday | Number of nights |
 | `--electric` | off | Only sites with an electric hookup |
-| `--max-campgrounds` | 60 | Cap on campgrounds checked |
+| `--max-campgrounds` | 80 | Cap on Recreation.gov campgrounds checked, nearest first |
 | `--show-sites` | 5 | Sites listed per campground |
 | `--no-state-parks` | off | Skip checking Texas State Parks |
 
@@ -71,9 +74,9 @@ run it from cron as an alert.
 - Geocoding uses OpenStreetMap Nominatim.
 - Campground search and availability use the same JSON endpoints that the
   recreation.gov website calls. These endpoints are unofficial and can change.
-- "2 hours east" means a point `drive-hours × mph` miles due east, plus a
-  `--radius` circle around it. This is a straight-line estimate, not real
-  driving time.
+- "Within 2 hours, east" means within `drive-hours × mph` straight-line miles
+  of you, and within `--spread` degrees of due east. This estimates driving
+  time; it doesn't use real road routes.
 - Electric sites are found from recreation.gov's site type (`STANDARD
   ELECTRIC`, `RV ELECTRIC`, ...).
 - **Coverage:** live availability is checked for recreation.gov only. That

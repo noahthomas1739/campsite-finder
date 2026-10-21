@@ -15,19 +15,21 @@ from . import geo, recgov, texas
 def parse_args(argv=None):
     p = argparse.ArgumentParser(
         prog="campsite-finder",
-        description="Find available campsites on Recreation.gov around a point a few hours' drive away.",
+        description=("Find available campsites (Recreation.gov and Texas State Parks) within a few "
+                     "hours' drive of you, in the direction you want to head."),
     )
     where = p.add_argument_group("where")
     where.add_argument("--from", dest="origin", help='Where you are starting, e.g. "Denver, CO" or a zip code')
     where.add_argument("--lat", type=float, help="Starting latitude (instead of --from)")
     where.add_argument("--lon", type=float, help="Starting longitude (instead of --from)")
-    where.add_argument("--drive-hours", type=float, default=2.0, help="How far you want to drive (default: 2)")
-    where.add_argument("--mph", type=float, default=50.0,
-                       help="Average straight-line progress per hour, used to turn hours into miles (default: 50)")
+    where.add_argument("--drive-hours", type=float, default=2.0,
+                       help="Furthest you're willing to drive; anything closer counts too (default: 2)")
+    where.add_argument("--mph", type=float, default=55.0,
+                       help="Straight-line miles covered per hour of driving (default: 55)")
     where.add_argument("--direction", default="east",
-                       help="Compass direction to head: north, ne, east, se, ... or 'any' to search around you (default: east)")
-    where.add_argument("--radius", type=float, default=40.0,
-                       help="Search radius in miles around the target point (default: 40)")
+                       help="Only places in this direction from you: north, ne, east, se, ... or 'any' (default: east)")
+    where.add_argument("--spread", type=float, default=60.0,
+                       help="Degrees either side of --direction to include; 60 means NE through SE for east (default: 60)")
 
     when = p.add_argument_group("when")
     when.add_argument("--start", type=date.fromisoformat, help="Check-in date YYYY-MM-DD (default: this Friday)")
@@ -35,7 +37,8 @@ def parse_args(argv=None):
 
     what = p.add_argument_group("what")
     what.add_argument("--electric", action="store_true", help="Only sites with an electric hookup")
-    what.add_argument("--max-campgrounds", type=int, default=60, help="Max campgrounds to check (default: 60)")
+    what.add_argument("--max-campgrounds", type=int, default=80,
+                      help="Max Recreation.gov campgrounds to check, nearest first (default: 80)")
     what.add_argument("--show-sites", type=int, default=5, help="Sites to list per campground (default: 5)")
     what.add_argument("--no-state-parks", action="store_true",
                       help="Skip checking Texas State Parks")
@@ -70,20 +73,25 @@ def main(argv=None):
     else:
         o_lat, o_lon = args.lat, args.lon
 
-    if args.direction.lower() == "any":
-        c_lat, c_lon = o_lat, o_lon
-        radius = max(args.radius, args.drive_hours * args.mph)
-    else:
-        dist = args.drive_hours * args.mph
-        c_lat, c_lon = geo.destination_point(o_lat, o_lon, geo.DIRECTIONS[args.direction.lower()], dist)
-        radius = args.radius
+    radius = args.drive_hours * args.mph
+    direction = args.direction.lower()
 
-    print(f"Searching within {radius:.0f} mi of ({c_lat:.3f}, {c_lon:.3f}) "
-          f"for {check_in:%a %b %d} -> {check_out:%a %b %d}"
+    def in_range(lat, lon):
+        if geo.haversine_mi(o_lat, o_lon, lat, lon) > radius:
+            return False
+        if direction == "any":
+            return True
+        return geo.within_heading(geo.bearing_deg(o_lat, o_lon, lat, lon), geo.DIRECTIONS[direction], args.spread)
+
+    print(f"Searching up to {radius:.0f} mi (straight-line) {'in every direction' if direction == 'any' else direction} "
+          f"of you for {check_in:%a %b %d} -> {check_out:%a %b %d}"
           f"{' (electric hookups only)' if args.electric else ''} ...", file=sys.stderr)
 
-    campgrounds = recgov.search_campgrounds(c_lat, c_lon, radius, limit=args.max_campgrounds)
-    print(f"Checking {len(campgrounds)} campgrounds ...", file=sys.stderr)
+    nearby = recgov.search_campgrounds(o_lat, o_lon, radius, limit=500)
+    campgrounds = [cg for cg in nearby if in_range(cg.lat, cg.lon)]
+    campgrounds.sort(key=lambda cg: geo.haversine_mi(o_lat, o_lon, cg.lat, cg.lon))
+    campgrounds = campgrounds[:args.max_campgrounds]
+    print(f"Checking {len(campgrounds)} Recreation.gov campgrounds ...", file=sys.stderr)
 
     def check(cg):
         result = recgov.CampgroundResult(cg, geo.haversine_mi(o_lat, o_lon, cg.lat, cg.lon))
@@ -102,7 +110,7 @@ def main(argv=None):
 
     park_hits = []
     if not args.no_state_parks:
-        parks = texas.parks_near(c_lat, c_lon, radius, geo.haversine_mi)
+        parks = [p for p in texas.PARKS if in_range(p.lat, p.lon)]
         if parks:
             print(f"Checking {len(parks)} Texas State Parks ...", file=sys.stderr)
 

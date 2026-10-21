@@ -90,10 +90,11 @@ class DatesTest(unittest.TestCase):
 
 
 class GeoTest(unittest.TestCase):
-    def test_east_point_distance(self):
-        lat, lon = geo.destination_point(39.96, -83.0, 90, 100)
-        self.assertAlmostEqual(geo.haversine_mi(39.96, -83.0, lat, lon), 100, delta=0.5)
-        self.assertGreater(lon, -83.0)
+    def test_bearing_and_heading(self):
+        self.assertAlmostEqual(geo.bearing_deg(32.93, -97.08, 32.93, -96.0), 90, delta=1)
+        self.assertTrue(geo.within_heading(122, 90, 60))
+        self.assertFalse(geo.within_heading(24, 90, 60))
+        self.assertTrue(geo.within_heading(350, 10, 30))  # wraps past north
 
 
 SAMPLE = os.path.join(os.path.dirname(__file__), "..", "samples", "reserveamerica", "explore_page.html")
@@ -119,13 +120,6 @@ FRI_SAT = [("2026-10-23", "AVAILABLE"), ("2026-10-24", "AVAILABLE")]
 
 
 class TexasTest(unittest.TestCase):
-    def test_two_hours_east_of_dallas(self):
-        lat, lon = geo.destination_point(32.7767, -96.797, 90, 100)
-        names = [p.name for p in texas.parks_near(lat, lon, 60, geo.haversine_mi)]
-        self.assertIn("Tyler State Park", names)
-        self.assertIn("Lake Tawakoni State Park", names)
-        self.assertNotIn("Cedar Hill State Park", names)
-
     def test_real_tyler_page(self):
         """Captured Tyler SP page for Fri Oct 23, 2026: 127 sites, none open that night."""
         with open(SAMPLE, encoding="utf-8") as f:
@@ -204,12 +198,37 @@ class EndToEndTest(unittest.TestCase):
         with mock.patch.object(recgov, "_get_json", side_effect=fake), \
                 mock.patch.object(texas, "_fetch", return_value=page), \
                 mock.patch("builtins.print") as p:
-            rc = cli.main(["--lat", "32.7767", "--lon", "-96.797", "--radius", "60",
+            rc = cli.main(["--lat", "32.9343", "--lon", "-97.0781",  # Grapevine
                            "--start", "2026-10-23", "--nights", "1", "--electric"])
         out = "\n".join(str(c.args[0]) for c in p.call_args_list if c.args)
         self.assertEqual(rc, 0)
         self.assertIn("Lake Tawakoni State Park", out)
         self.assertIn("site T7: Campsite Electric, 30 amp", out)
+        # 2 hours east of Grapevine: Tawakoni, Purtis Creek, Cooper Lake, Tyler; not Texoma (north),
+        # Cedar Hill (south) or Daingerfield (too far).
+        for name in ("Lake Tawakoni", "Purtis Creek", "Cooper Lake State Park - South Sulphur", "Tyler"):
+            self.assertIn(name, out)
+        for name in ("Eisenhower", "Cedar Hill", "Daingerfield"):
+            self.assertNotIn(name, out)
+
+    def test_recgov_filtered_to_east_and_sorted_nearest_first(self):
+        search = {"total": 3, "results": [
+            {"entity_id": "1", "name": "TEXOMA NORTH", "latitude": "33.85", "longitude": "-96.6"},
+            {"entity_id": "2", "name": "JIM CHAPMAN", "latitude": "33.30", "longitude": "-95.62"},
+            {"entity_id": "3", "name": "LAVON", "latitude": "33.03", "longitude": "-96.48"},
+        ]}
+        checked = []
+
+        def fake(path, params=None):
+            if path == "/api/search":
+                return search
+            checked.append(path.split("/")[-2])
+            return {"campsites": {}}
+
+        with mock.patch.object(recgov, "_get_json", side_effect=fake), mock.patch("builtins.print"):
+            cli.main(["--lat", "32.9343", "--lon", "-97.0781", "--no-state-parks", "--workers", "1",
+                      "--start", "2026-10-23", "--nights", "1"])
+        self.assertEqual(checked, ["3", "2"])
 
 
 if __name__ == "__main__":

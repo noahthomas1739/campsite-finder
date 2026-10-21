@@ -33,22 +33,23 @@ def geocode(place):
     return float(results[0]["lat"]), float(results[0]["lon"])
 
 
-def destination_point(lat, lon, bearing_deg, distance_mi):
-    """Point reached by travelling distance_mi from (lat, lon) along bearing_deg."""
-    d = distance_mi / EARTH_RADIUS_MI
-    b = math.radians(bearing_deg)
-    p1, l1 = math.radians(lat), math.radians(lon)
-    p2 = math.asin(math.sin(p1) * math.cos(d) + math.cos(p1) * math.sin(d) * math.cos(b))
-    l2 = l1 + math.atan2(
-        math.sin(b) * math.sin(d) * math.cos(p1),
-        math.cos(d) - math.sin(p1) * math.sin(p2),
-    )
-    return math.degrees(p2), (math.degrees(l2) + 540) % 360 - 180
-
-
 def haversine_mi(lat1, lon1, lat2, lon2):
     p1, p2 = math.radians(lat1), math.radians(lat2)
     dp = p2 - p1
     dl = math.radians(lon2 - lon1)
     a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     return 2 * EARTH_RADIUS_MI * math.asin(math.sqrt(a))
+
+
+def bearing_deg(lat1, lon1, lat2, lon2):
+    """Compass bearing (0 = north, 90 = east) from point 1 to point 2."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dl = math.radians(lon2 - lon1)
+    x = math.sin(dl) * math.cos(p2)
+    y = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
+    return (math.degrees(math.atan2(x, y)) + 360) % 360
+
+
+def within_heading(bearing, heading, spread):
+    """True if bearing is within +/- spread degrees of heading."""
+    return abs((bearing - heading + 180) % 360 - 180) <= spread

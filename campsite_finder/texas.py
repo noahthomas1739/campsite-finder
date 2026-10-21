@@ -85,12 +85,6 @@ PARKS = [
 ]
 
 
-def parks_near(lat, lon, radius_mi, distance_fn):
-    """Parks within radius_mi of (lat, lon), nearest first."""
-    hits = [(distance_fn(lat, lon, p.lat, p.lon), p) for p in PARKS]
-    return [p for d, p in sorted(hits, key=lambda x: x[0]) if d <= radius_mi]
-
-
 def parse_search_page(page_html):
     """The searchResults object embedded in a ReserveAmerica campsite search page."""
     m = re.search(r'<script[^>]*id="initialState"[^>]*>(.*?)</script>', page_html, re.S)
