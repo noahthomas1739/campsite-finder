@@ -1,0 +1,13 @@
+[project]
+name = "campsite-finder"
+version = "0.1.0"
+description = "Find available campsites (e.g. electric hookups) on Recreation.gov within a drive of you."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+campsite-finder = "campsite_finder.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
