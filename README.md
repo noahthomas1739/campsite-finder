@@ -41,8 +41,8 @@ Friday night only.
 
 From Grapevine, that covers:
 
-- **Texas State Parks:** Lake Tawakoni (~63 mi), Purtis Creek (~75 mi), Cooper Lake (both units,
-  ~85 mi), and Tyler (~109 mi).
+- **Texas State Parks:** Lake Tawakoni (~63 mi), Bonham (~69 mi), Purtis Creek (~75 mi), Cooper
+  Lake (both units, ~85 mi), and Tyler (~109 mi).
 - **Recreation.gov:** Army Corps of Engineers lakes to the east, such as Lavon Lake and Jim
   Chapman Lake.
 
@@ -50,8 +50,19 @@ It leaves out Ray Roberts and Lake Texoma (north), Cedar Hill (south), and the p
 Sandlin, Daingerfield, and Lake O' the Pines are 2¼ hours or more. To include them, add
 `--drive-hours 2.5`.
 
-To search every direction, including Ray Roberts (Isle du Bois and Johnson Branch), Lake Texoma,
-and Cedar Hill, use `--direction any`.
+To search every direction, use `--direction any`. That checks all 20 state parks within about
+2 hours of Grapevine:
+
+| Direction | State parks |
+|---|---|
+| East / NE | Lake Tawakoni, Bonham, Purtis Creek, Cooper Lake (both units), Tyler |
+| North | Ray Roberts Lake (Isle du Bois, Johnson Branch), Eisenhower (Lake Texoma) |
+| West / NW | Lake Mineral Wells, Fort Richardson, Possum Kingdom, Palo Pinto Mountains, Lake Arrowhead |
+| South / SW | Cedar Hill, Cleburne, Dinosaur Valley, Lake Whitney, Meridian, Fort Parker |
+
+Mother Neff, Lake Bob Sandlin, and Daingerfield are also in the list. They're just past
+2 hours, so they appear with `--drive-hours 2.5`. A search in every direction loads more pages,
+so it takes a few minutes.
 
 ## Options
 

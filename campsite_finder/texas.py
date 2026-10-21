@@ -65,7 +65,7 @@ class StateParkResult:
     error: str | None = None
 
 
-# East / northeast of Dallas-Fort Worth, roughly 1-2.5 hours out.
+# Within roughly 2-2.5 hours of Dallas-Fort Worth. East / northeast first.
 PARKS = [
     StatePark("Lake Tawakoni State Park", "lake-tawakoni-state-park", 1200120, 32.84, -95.99,
               notes="full hookup + electric sites"),
@@ -80,7 +80,31 @@ PARKS = [
               notes="electric sites"),
     StatePark("Daingerfield State Park", "daingerfield-state-park", 1200117, 33.01, -94.70,
               notes="full hookup sites"),
-    # Around DFW itself, for --direction any.
+    StatePark("Bonham State Park", "bonham-state-park", 1200112, 33.55, -96.14,
+              notes="electric, tent-only electric and full hookup sites"),
+    # North, west and south of DFW (use --direction any, or north/west/south).
+    StatePark("Lake Arrowhead State Park", "lake-arrowhead-state-park", 1200099, 33.76, -98.39,
+              notes="electric sites; near Wichita Falls"),
+    StatePark("Fort Richardson State Park", "fort-richardson-state-park-hist-site-and-trailway", 1200098,
+              33.20, -98.16, notes="electric + full hookup sites; Jacksboro"),
+    StatePark("Lake Mineral Wells State Park", "lake-mineral-wells-state-park-and-trailway", 1200101,
+              32.82, -98.04, notes="electric sites; often fills up"),
+    StatePark("Possum Kingdom State Park", "possum-kingdom-state-park", 1200107, 32.87, -98.56,
+              notes="electric + water sites, clear lake"),
+    StatePark("Palo Pinto Mountains State Park", "palo-pinto-mountains-sp", 1200106, 32.60, -98.52,
+              notes="newest Texas state park (opened March 2026)"),
+    StatePark("Cleburne State Park", "cleburne-state-park", 1200093, 32.26, -97.55,
+              notes="electric + full hookup sites"),
+    StatePark("Dinosaur Valley State Park", "dinosaur-valley-state-park", 1200095, 32.25, -97.82,
+              notes="electric sites; Glen Rose"),
+    StatePark("Meridian State Park", "meridian-state-park", 1200103, 31.89, -97.70,
+              notes="electric + full hookup sites"),
+    StatePark("Lake Whitney State Park", "lake-whitney-state-park", 1200102, 31.93, -97.36,
+              notes="electric + full hookup sites"),
+    StatePark("Fort Parker State Park", "fort-parker-state-park", 1200097, 31.60, -96.53,
+              notes="electric sites; near Mexia"),
+    StatePark("Mother Neff State Park", "mother-neff-state-park", 1200104, 31.32, -97.47,
+              notes="electric sites; just past 2 hours"),
     StatePark("Ray Roberts Lake State Park - Isle du Bois", "ray-roberts-lake-state-park-isle-du-bois", 1200123,
               33.36, -97.01, notes="30-amp electric sites"),
     StatePark("Ray Roberts Lake State Park - Johnson Branch", "ray-roberts-lake-state-park-johnson-branch", 1200124,

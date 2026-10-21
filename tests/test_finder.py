@@ -236,15 +236,17 @@ class EndToEndTest(unittest.TestCase):
         self.assertIn("site T7: Campsite Electric, 30 amp", out)
         # 2 hours east of Grapevine: Tawakoni, Purtis Creek, Cooper Lake, Tyler; not Texoma (north),
         # Cedar Hill (south) or Daingerfield (too far).
-        for name in ("Lake Tawakoni", "Purtis Creek", "Cooper Lake State Park - South Sulphur", "Tyler"):
+        for name in ("Lake Tawakoni", "Purtis Creek", "Cooper Lake State Park - South Sulphur", "Tyler", "Bonham"):
             self.assertIn(name, out)
-        for name in ("Eisenhower", "Cedar Hill", "Daingerfield", "Ray Roberts"):
+        for name in ("Eisenhower", "Cedar Hill", "Daingerfield", "Ray Roberts", "Mineral Wells", "Whitney"):
             self.assertNotIn(name, out)
 
     def test_any_direction_includes_ray_roberts(self):
         near = [p.name for p in texas.PARKS if geo.haversine_mi(32.9343, -97.0781, p.lat, p.lon) <= 110]
         self.assertIn("Ray Roberts Lake State Park - Isle du Bois", near)
         self.assertIn("Ray Roberts Lake State Park - Johnson Branch", near)
+        self.assertEqual(len(near), 20)
+        self.assertEqual(len({p.park_id for p in texas.PARKS}), len(texas.PARKS))
 
     def test_recgov_filtered_to_east_and_sorted_nearest_first(self):
         search = {"total": 3, "results": [
