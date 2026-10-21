@@ -46,9 +46,12 @@ From Grapevine, that covers:
 - **Recreation.gov:** Army Corps of Engineers lakes to the east, such as Lavon Lake and Jim
   Chapman Lake.
 
-It leaves out Lake Texoma (north), Cedar Hill (south), and the parks past Tyler. Lake Bob
+It leaves out Ray Roberts and Lake Texoma (north), Cedar Hill (south), and the parks past Tyler. Lake Bob
 Sandlin, Daingerfield, and Lake O' the Pines are 2¼ hours or more. To include them, add
 `--drive-hours 2.5`.
+
+To search every direction, including Ray Roberts (Isle du Bois and Johnson Branch), Lake Texoma,
+and Cedar Hill, use `--direction any`.
 
 ## Options
 

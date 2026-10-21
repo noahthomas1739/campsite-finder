@@ -81,6 +81,10 @@ PARKS = [
     StatePark("Daingerfield State Park", "daingerfield-state-park", 1200117, 33.01, -94.70,
               notes="full hookup sites"),
     # Around DFW itself, for --direction any.
+    StatePark("Ray Roberts Lake State Park - Isle du Bois", "ray-roberts-lake-state-park-isle-du-bois", 1200123,
+              33.36, -97.01, notes="30-amp electric sites"),
+    StatePark("Ray Roberts Lake State Park - Johnson Branch", "ray-roberts-lake-state-park-johnson-branch", 1200124,
+              33.43, -97.12, notes="electric, water-only and primitive sites"),
     StatePark("Cedar Hill State Park", "cedar-hill-state-park", 1200114, 32.62, -96.98,
               notes="Joe Pool Lake, inside DFW"),
     StatePark("Eisenhower State Park", "eisenhower-state-park", 1200118, 33.81, -96.61,

@@ -238,8 +238,13 @@ class EndToEndTest(unittest.TestCase):
         # Cedar Hill (south) or Daingerfield (too far).
         for name in ("Lake Tawakoni", "Purtis Creek", "Cooper Lake State Park - South Sulphur", "Tyler"):
             self.assertIn(name, out)
-        for name in ("Eisenhower", "Cedar Hill", "Daingerfield"):
+        for name in ("Eisenhower", "Cedar Hill", "Daingerfield", "Ray Roberts"):
             self.assertNotIn(name, out)
+
+    def test_any_direction_includes_ray_roberts(self):
+        near = [p.name for p in texas.PARKS if geo.haversine_mi(32.9343, -97.0781, p.lat, p.lon) <= 110]
+        self.assertIn("Ray Roberts Lake State Park - Isle du Bois", near)
+        self.assertIn("Ray Roberts Lake State Park - Johnson Branch", near)
 
     def test_recgov_filtered_to_east_and_sorted_nearest_first(self):
         search = {"total": 3, "results": [
