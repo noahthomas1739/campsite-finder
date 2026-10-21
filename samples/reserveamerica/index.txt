@@ -1,0 +1,5 @@
+park_details	GET	200	374126 bytes	https://texasstateparks.reserveamerica.com/camping/tyler-state-park/r/campgroundDetails.do?contractCode=TX&parkId=1200125
+campsite_search_get	GET	200	374154 bytes	https://texasstateparks.reserveamerica.com/camping/tyler-state-park/r/campgroundDetails.do?contractCode=TX&parkId=1200125
+campsite_search_post	POST	200	374153 bytes	https://texasstateparks.reserveamerica.com/camping/tyler-state-park/r/campgroundDetails.do?contractCode=TX&parkId=1200125
+campsite_calendar	GET	200	184661 bytes	https://texasstateparks.reserveamerica.com/camping/tyler-state-park/r/campgroundDetails.do?contractCode=TX&parkId=1200125#sr_a
+explore_page	GET	200	1063132 bytes	https://www.reserveamerica.com/explore/tyler-state-park/TX/1200125/campsites?arrivalDate=2026-10-23&lengthOfStay=1
