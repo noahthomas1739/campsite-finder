@@ -37,6 +37,8 @@ def parse_args(argv=None):
 
     what = p.add_argument_group("what")
     what.add_argument("--electric", action="store_true", help="Only sites with an electric hookup")
+    what.add_argument("--all-site-types", action="store_true",
+                      help="Include horse, group, pavilion, picnic, shelter and cabin sites (hidden by default)")
     what.add_argument("--max-campgrounds", type=int, default=80,
                       help="Max Recreation.gov campgrounds to check, nearest first (default: 80)")
     what.add_argument("--show-sites", type=int, default=5, help="Sites to list per campground (default: 5)")
@@ -96,7 +98,8 @@ def main(argv=None):
     def check(cg):
         result = recgov.CampgroundResult(cg, geo.haversine_mi(o_lat, o_lon, cg.lat, cg.lon))
         try:
-            result.sites = recgov.available_sites(cg.id, check_in, check_out, electric_only=args.electric)
+            result.sites = recgov.available_sites(cg.id, check_in, check_out, electric_only=args.electric,
+                                                 standard_only=not args.all_site_types)
         except Exception as e:  # one bad campground shouldn't sink the whole search
             result.error = str(e)
         return result
@@ -117,7 +120,8 @@ def main(argv=None):
         def check_park(park):
             result = texas.StateParkResult(park, geo.haversine_mi(o_lat, o_lon, park.lat, park.lon))
             try:
-                result.sites = texas.available_sites(park, check_in, check_out, electric_only=args.electric)
+                result.sites = texas.available_sites(park, check_in, check_out, electric_only=args.electric,
+                                                    standard_only=not args.all_site_types)
             except Exception as e:
                 result.error = str(e)
             return result

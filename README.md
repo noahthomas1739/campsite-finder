@@ -62,6 +62,7 @@ Sandlin, Daingerfield, and Lake O' the Pines are 2¼ hours or more. To include t
 | `--start` | this Friday | Check-in date `YYYY-MM-DD` |
 | `--nights` | through Sunday | Number of nights |
 | `--electric` | off | Only sites with an electric hookup |
+| `--all-site-types` | off | Include horse, group, pavilion, picnic, shelter and cabin sites, which are hidden by default |
 | `--max-campgrounds` | 80 | Cap on Recreation.gov campgrounds checked, nearest first |
 | `--show-sites` | 5 | Sites listed per campground |
 | `--no-state-parks` | off | Skip checking Texas State Parks |

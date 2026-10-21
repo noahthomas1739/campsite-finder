@@ -15,6 +15,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
+from .filters import is_specialty
+
 BASE = "https://www.recreation.gov"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (campsite-finder personal availability checker)",
@@ -127,7 +129,8 @@ def _months(start, end):
         m = (m.replace(day=28) + timedelta(days=4)).replace(day=1)
 
 
-def available_sites(campground_id, check_in, check_out, electric_only=False, type_of_use="Overnight"):
+def available_sites(campground_id, check_in, check_out, electric_only=False, type_of_use="Overnight",
+                    standard_only=True):
     """Sites that are 'Available' for every night from check_in up to check_out."""
     nights = [check_in + timedelta(days=i) for i in range((check_out - check_in).days)]
     merged = {}
@@ -143,6 +146,8 @@ def available_sites(campground_id, check_in, check_out, electric_only=False, typ
     sites = []
     for sid, s in merged.items():
         if type_of_use and s.get("type_of_use") not in (None, type_of_use):
+            continue
+        if standard_only and is_specialty(s.get("campsite_type")):
             continue
         if electric_only and not is_electric(s.get("campsite_type")):
             continue

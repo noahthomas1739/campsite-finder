@@ -18,6 +18,9 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import timedelta
+from string import capwords
+
+from .filters import is_specialty
 
 BASE = "https://www.reserveamerica.com"
 HEADERS = {
@@ -117,10 +120,12 @@ def is_open(record, check_in, check_out):
     return all(grid.get(n) == "AVAILABLE" for n in nights)
 
 
-def open_sites(records, check_in, check_out, electric_only=False):
+def open_sites(records, check_in, check_out, electric_only=False, standard_only=True):
     sites = []
     for r in records:
         if (r.get("prodInfo") or {}).get("typeOfUse") != "NIGHTLY":
+            continue
+        if standard_only and is_specialty(r.get("prodGrpName")):
             continue
         if electric_only and not is_electric(r):
             continue
@@ -129,7 +134,7 @@ def open_sites(records, check_in, check_out, electric_only=False):
         details = r.get("details") or {}
         sites.append(StateParkSite(
             name=r.get("name", ""),
-            loop=(details.get("loopName") or "").title(),
+            loop=capwords(details.get("loopName") or ""),
             site_type=r.get("prodGrpName", ""),
             electric_amps=_attribute(r, "Electricity Hookup"),
             rate=details.get("ratesStartingFrom") or "",
@@ -143,14 +148,14 @@ def _fetch(url):
         return resp.read().decode("utf-8", "replace")
 
 
-def available_sites(park, check_in, check_out, electric_only=False, fetch=None, delay=1.0):
+def available_sites(park, check_in, check_out, electric_only=False, standard_only=True, fetch=None, delay=1.0):
     fetch = fetch or _fetch
     nights = (check_out - check_in).days
     base = park.url(check_in, nights)
     sites, page = [], 0
     while page < MAX_PAGES:
         results = parse_search_page(fetch(f"{base}&pageNumber={page}"))
-        found = open_sites(results.get("records") or [], check_in, check_out, electric_only)
+        found = open_sites(results.get("records") or [], check_in, check_out, electric_only, standard_only)
         # The summary says whether anything at all is open for the stay; if not (and the
         # first page agrees), don't fetch the rest.
         if page == 0 and not found and (results.get("summary") or {}).get("atLeastOneSiteAvailable") is False:

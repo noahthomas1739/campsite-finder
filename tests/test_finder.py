@@ -38,6 +38,24 @@ class ElectricTest(unittest.TestCase):
         self.assertFalse(recgov.is_electric(None))
 
 
+class SpecialtyTest(unittest.TestCase):
+    def test_recgov_hides_horse_and_group_sites(self):
+        data = {"campsites": {
+            "1": {"campsite_id": "1", "site": "E01", "campsite_type": "EQUESTRIAN ELECTRIC", "type_of_use": "Overnight",
+                  "availabilities": availability([("2026-10-23", "Available")])},
+            "2": {"campsite_id": "2", "site": "001", "campsite_type": "GROUP STANDARD ELECTRIC", "type_of_use": "Overnight",
+                  "availabilities": availability([("2026-10-23", "Available")])},
+            "3": {"campsite_id": "3", "site": "38", "campsite_type": "STANDARD ELECTRIC", "type_of_use": "Overnight",
+                  "availabilities": availability([("2026-10-23", "Available")])},
+        }}
+        with mock.patch.object(recgov, "_get_json", return_value=data):
+            default = recgov.available_sites("x", date(2026, 10, 23), date(2026, 10, 24), electric_only=True)
+            everything = recgov.available_sites("x", date(2026, 10, 23), date(2026, 10, 24), electric_only=True,
+                                                standard_only=False)
+        self.assertEqual([s.name for s in default], ["38"])
+        self.assertEqual(len(everything), 3)
+
+
 class AvailabilityTest(unittest.TestCase):
     def test_filters_full_stay_electric_overnight(self):
         with mock.patch.object(recgov, "_get_json", return_value=OCT):
@@ -158,6 +176,18 @@ class TexasTest(unittest.TestCase):
         self.assertEqual(sites[1].electric_amps, "50")
         self.assertEqual(sites[0].loop, "Big Pine")
         self.assertIn("pageNumber=1", fetch.call_args_list[1][0][0])
+
+    def test_hides_specialty_sites_but_not_tent_only(self):
+        night = [("2026-10-23", "AVAILABLE")]
+        records = [
+            ra_record("GN003", "Campsite Electric - Tent Only", night, amps="30"),
+            ra_record("H1", "Campsite Equestrian Electric", night, amps="30"),
+            ra_record("C1", "Cabin", night, amps="30"),
+        ]
+        records[0]["details"]["loopName"] = "GRANNY'S NECK SHELTER AREA"
+        sites = texas.open_sites(records, date(2026, 10, 23), date(2026, 10, 24), electric_only=True)
+        self.assertEqual([s.name for s in sites], ["GN003"])  # "Shelter" in the loop name doesn't count
+        self.assertEqual(sites[0].loop, "Granny's Neck Shelter Area")
 
     def test_electric_detection(self):
         self.assertTrue(texas.is_electric(ra_record("x", "Campsite with Water", [], amps="30")))
