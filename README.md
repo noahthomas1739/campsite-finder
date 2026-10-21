@@ -5,7 +5,7 @@ campgrounds around a point a few hours' drive from you, then checks which sites
 are open **every night** of your stay. It can limit results to sites with
 **electric hookups**.
 
-No dependencies. You only need Python 3.10 or newer.
+No dependencies. You only need Python 3.9 or newer.
 
 ## Quick start
 

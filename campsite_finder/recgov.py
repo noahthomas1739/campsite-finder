@@ -5,6 +5,8 @@ Uses the same JSON endpoints the recreation.gov website calls:
   - /api/camps/availability/campground/{id}/month  per-site, per-night availability
 """
 
+from __future__ import annotations
+
 import json
 import time
 import urllib.error
