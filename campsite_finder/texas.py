@@ -194,3 +194,38 @@ def available_sites(park, check_in, check_out, electric_only=False, standard_onl
             break
         time.sleep(delay)
     return sites
+
+
+def site_nights(park, start, days, standard_only=True, fetch=None, delay=1.0):
+    """Every nightly site with at least one open night in the `days` nights from start,
+    as (StateParkSite, electric, [open ISO dates]). One pass over all result pages:
+    each record's availabilityGrid covers about two weeks from the arrival date."""
+    fetch = fetch or _fetch
+    window = [(start + timedelta(days=i)).isoformat() for i in range(days)]
+    base = park.url(start, 1)
+    out, page = [], 0
+    while page < MAX_PAGES:
+        results = parse_search_page(fetch(f"{base}&pageNumber={page}"))
+        for r in results.get("records") or []:
+            if (r.get("prodInfo") or {}).get("typeOfUse") != "NIGHTLY":
+                continue
+            if standard_only and is_specialty(r.get("prodGrpName")):
+                continue
+            grid = {g.get("date"): g.get("status") for g in r.get("availabilityGrid") or []}
+            open_nights = [d for d in window if grid.get(d) == "AVAILABLE"]
+            if not open_nights:
+                continue
+            details = r.get("details") or {}
+            site = StateParkSite(
+                name=r.get("name", ""),
+                loop=capwords(details.get("loopName") or ""),
+                site_type=r.get("prodGrpName", ""),
+                electric_amps=_attribute(r, "Electricity Hookup"),
+                rate=details.get("ratesStartingFrom") or "",
+            )
+            out.append((site, is_electric(r), open_nights))
+        page += 1
+        if page >= (results.get("totalPages") or 0):
+            break
+        time.sleep(delay)
+    return out

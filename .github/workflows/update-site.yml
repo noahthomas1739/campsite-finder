@@ -1,0 +1,49 @@
+name: Update campsite page
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # every 6 hours (UTC)
+  workflow_dispatch:          # "Run workflow" button on the Actions tab
+  push:
+    branches: [main]
+    paths: ["site/**", "campsite_finder/**", ".github/workflows/update-site.yml"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run tests
+        run: python -m unittest discover -s tests -t .
+      - name: Check availability (2 hours of Grapevine, every direction)
+        run: >
+          python -m campsite_finder.snapshot
+          --lat 32.9343 --lon -97.0781 --origin-name "Grapevine, TX"
+          --direction any --drive-hours 2
+          --out site/data.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

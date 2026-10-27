@@ -4,7 +4,7 @@ import unittest
 from datetime import date
 from unittest import mock
 
-from campsite_finder import cli, geo, recgov, texas
+from campsite_finder import cli, geo, recgov, snapshot, texas
 
 
 def availability(pairs):
@@ -266,6 +266,61 @@ class EndToEndTest(unittest.TestCase):
             cli.main(["--lat", "32.9343", "--lon", "-97.0781", "--no-state-parks", "--workers", "1",
                       "--start", "2026-10-23", "--nights", "1"])
         self.assertEqual(checked, ["3", "2"])
+
+
+class SnapshotTest(unittest.TestCase):
+    def test_recgov_site_nights(self):
+        with mock.patch.object(recgov, "_get_json", return_value=OCT):
+            rows = recgov.site_nights("x", date(2026, 10, 23), date(2026, 10, 25))
+        got = {s.name: nights for s, nights in rows}
+        self.assertEqual(got["A01"], ["2026-10-23", "2026-10-24"])
+        self.assertEqual(got["B01"], ["2026-10-23"])  # partially open still listed
+        self.assertNotIn("C01", got)  # day use
+
+    def test_texas_site_nights_reads_every_page(self):
+        page0 = ra_page([ra_record("A1", "Campsite Electric", [("2026-10-23", "RESERVED"),
+                                                               ("2026-10-24", "AVAILABLE")], amps="30")],
+                        total_pages=2, any_available=False)
+        page1 = ra_page([ra_record("B1", "Campsite with Water", [("2026-10-23", "AVAILABLE")])], total_pages=2)
+        fetch = mock.Mock(side_effect=[page0, page1])
+        rows = texas.site_nights(texas.PARKS[0], date(2026, 10, 23), 3, fetch=fetch, delay=0)
+        self.assertEqual(fetch.call_count, 2)  # no early exit: other nights may be open
+        self.assertIn("arrivalDate=2026-10-23&lengthOfStay=1", fetch.call_args_list[0][0][0])
+        self.assertEqual([(s.name, electric, nights) for s, electric, nights in rows],
+                         [("A1", True, ["2026-10-24"]), ("B1", False, ["2026-10-23"])])
+
+    def test_real_tyler_page_finds_later_nights(self):
+        with open(SAMPLE, encoding="utf-8") as f:
+            page = f.read()
+        rows = texas.site_nights(texas.PARKS[4], date(2026, 10, 23), 14, fetch=lambda url: page, delay=0)
+        self.assertTrue(rows)  # Friday was full, but the grid has open nights later on
+        self.assertTrue(all(n > "2026-10-23" for _, _, nights in rows for n in nights))
+
+    def test_build(self):
+        search = {"total": 2, "results": [
+            {"entity_id": "3", "name": "LAVON", "latitude": "33.03", "longitude": "-96.48"},
+            {"entity_id": "9", "name": "FAR AWAY", "latitude": "35.5", "longitude": "-97.0"},
+        ]}
+
+        def fake(path, params=None):
+            return search if path == "/api/search" else OCT
+
+        page = ra_page([ra_record("T7", "Campsite Electric", [("2026-10-23", "AVAILABLE")], amps="30")])
+        args = snapshot.parse_args(["--lat", "32.9343", "--lon", "-97.0781", "--out", "x.json", "--days", "3"])
+        with mock.patch.object(recgov, "_get_json", side_effect=fake), \
+                mock.patch.object(texas, "_fetch", return_value=page), mock.patch("time.sleep"):
+            snap = snapshot.build(args, today=date(2026, 10, 23))
+        self.assertEqual(snap["first_night"], "2026-10-23")
+        self.assertEqual(snap["last_night"], "2026-10-25")
+        self.assertEqual(snap["checked"]["recreation_gov"], 1)
+        self.assertEqual(snap["checked"]["state_parks"], 20)
+        lavon = next(c for c in snap["campgrounds"] if c["name"] == "Lavon")
+        self.assertEqual(lavon["heading"], "E")
+        tyler = next(c for c in snap["campgrounds"] if c["name"] == "Tyler State Park")
+        self.assertEqual(tyler["sites"][0]["open"], ["2026-10-23"])
+        self.assertIn("{arrival}", tyler["booking_url_template"])
+        self.assertEqual(snap["campgrounds"], sorted(snap["campgrounds"], key=lambda c: c["miles"]))
+        json.dumps(snap)
 
 
 if __name__ == "__main__":

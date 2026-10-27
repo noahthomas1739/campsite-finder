@@ -64,6 +64,21 @@ Mother Neff, Lake Bob Sandlin, and Daingerfield are also in the list. They're ju
 2 hours, so they appear with `--drive-hours 2.5`. A search in every direction loads more pages,
 so it takes a few minutes.
 
+## Web page (GitHub Pages)
+
+`site/index.html` is a page anyone can open to see open sites without running anything. A
+scheduled GitHub Actions job (`.github/workflows/update-site.yml`) runs every 6 hours. It checks
+every campground within about 2 hours of Grapevine, in all directions, for the next 14 nights,
+using `python -m campsite_finder.snapshot`. It then publishes the page together with the results
+(`data.json`). On the page, visitors pick the arrival night, number of nights, direction, maximum
+distance, and whether to show electric sites only.
+
+One-time setup: in the repo, go to **Settings → Pages → Build and deployment → Source** and
+choose **GitHub Actions**. Then open the **Actions** tab, pick **Update campsite page**, and click
+**Run workflow**. The page will be at `https://<owner>.github.io/campsite-finder/`.
+
+To change the starting point or distance, edit the `snapshot` command in the workflow file.
+
 ## Options
 
 | Flag | Default | Meaning |

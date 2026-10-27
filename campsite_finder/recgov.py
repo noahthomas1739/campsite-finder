@@ -129,12 +129,10 @@ def _months(start, end):
         m = (m.replace(day=28) + timedelta(days=4)).replace(day=1)
 
 
-def available_sites(campground_id, check_in, check_out, electric_only=False, type_of_use="Overnight",
-                    standard_only=True):
-    """Sites that are 'Available' for every night from check_in up to check_out."""
-    nights = [check_in + timedelta(days=i) for i in range((check_out - check_in).days)]
+def _merged_availability(campground_id, start, end):
+    """Per-site availability for nights start..end-1, merged across the months involved."""
     merged = {}
-    for month in _months(check_in, check_out):
+    for month in _months(start, end):
         data = _get_json(
             f"/api/camps/availability/campground/{campground_id}/month",
             {"start_date": month.strftime("%Y-%m-01T00:00:00.000Z")},
@@ -142,27 +140,56 @@ def available_sites(campground_id, check_in, check_out, electric_only=False, typ
         for sid, site in (data.get("campsites") or {}).items():
             entry = merged.setdefault(sid, dict(site, availabilities={}))
             entry["availabilities"].update(site.get("availabilities") or {})
+    return merged
 
+
+def _wanted(s, electric_only, type_of_use, standard_only):
+    if type_of_use and s.get("type_of_use") not in (None, type_of_use):
+        return False
+    if standard_only and is_specialty(s.get("campsite_type")):
+        return False
+    return not electric_only or is_electric(s.get("campsite_type"))
+
+
+def _site(sid, s):
+    return Site(
+        id=str(s.get("campsite_id", sid)),
+        name=str(s.get("site", "")),
+        loop=s.get("loop", "") or "",
+        campsite_type=s.get("campsite_type", "") or "",
+        type_of_use=s.get("type_of_use", "") or "",
+        max_people=s.get("max_num_people"),
+    )
+
+
+def available_sites(campground_id, check_in, check_out, electric_only=False, type_of_use="Overnight",
+                    standard_only=True):
+    """Sites that are 'Available' for every night from check_in up to check_out."""
+    nights = [check_in + timedelta(days=i) for i in range((check_out - check_in).days)]
     sites = []
-    for sid, s in merged.items():
-        if type_of_use and s.get("type_of_use") not in (None, type_of_use):
-            continue
-        if standard_only and is_specialty(s.get("campsite_type")):
-            continue
-        if electric_only and not is_electric(s.get("campsite_type")):
+    for sid, s in _merged_availability(campground_id, check_in, check_out).items():
+        if not _wanted(s, electric_only, type_of_use, standard_only):
             continue
         avail = s["availabilities"]
         if all(avail.get(n.strftime("%Y-%m-%dT00:00:00Z")) == "Available" for n in nights):
-            sites.append(Site(
-                id=str(s.get("campsite_id", sid)),
-                name=str(s.get("site", "")),
-                loop=s.get("loop", "") or "",
-                campsite_type=s.get("campsite_type", "") or "",
-                type_of_use=s.get("type_of_use", "") or "",
-                max_people=s.get("max_num_people"),
-            ))
+            sites.append(_site(sid, s))
     sites.sort(key=lambda x: (x.loop, x.name))
     return sites
+
+
+def site_nights(campground_id, start, end, type_of_use="Overnight", standard_only=True):
+    """Every site with at least one open night in start..end-1, as (Site, [open ISO dates])."""
+    nights = [start + timedelta(days=i) for i in range((end - start).days)]
+    out = []
+    for sid, s in _merged_availability(campground_id, start, end).items():
+        if not _wanted(s, False, type_of_use, standard_only):
+            continue
+        avail = s["availabilities"]
+        open_nights = [n.isoformat() for n in nights if avail.get(n.strftime("%Y-%m-%dT00:00:00Z")) == "Available"]
+        if open_nights:
+            out.append((_site(sid, s), open_nights))
+    out.sort(key=lambda x: (x[0].loop, x[0].name))
+    return out
 
 
 def upcoming_weekend(today=None):
