@@ -16,6 +16,10 @@ summit-vacation-rv-resort
 treeside-rv-resort-newbraunfels-tx
 yogi-bear-jellystone-park-hill-country
 
+## paths in Campspot availability scripts (2)
+/${a.parkSlug}/site/${a.site.id}
+/static/assets/site-image-placeholder.Cf5wiqjG.svg
+
 ## API hosts/URLs seen in JavaScript (12)
 https://api.disqometer.com/
 https://api.nimblecapture.com/static/file/cnt.1.7.2.4.js
