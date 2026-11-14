@@ -1,0 +1,4 @@
+campspot_near_canyon_lake	ERROR	103 bytes	https://www.campspot.com/c/camping-in-texas/near-canyon-lake
+campspot_park_fimfo	ERROR	103 bytes	https://www.campspot.com/park/camp-fimfo
+hipcamp_canyon_lake	200	1417219 bytes	https://www.hipcamp.com/en-US/d/united-states/texas/canyon-lake/camping/all?arrive=2026-11-27&depart=2026-11-29
+hipcamp_johnson_city	200	1193294 bytes	https://www.hipcamp.com/en-US/d/united-states/texas/johnson-city/camping/all?arrive=2026-11-27&depart=2026-11-29
