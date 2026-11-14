@@ -4,7 +4,7 @@ import unittest
 from datetime import date
 from unittest import mock
 
-from campsite_finder import cli, geo, hipcamp, recgov, snapshot, texas, web
+from campsite_finder import campspot, cli, geo, hipcamp, recgov, snapshot, texas, web
 
 
 def availability(pairs):
@@ -305,6 +305,7 @@ class RouteTest(unittest.TestCase):
                 mock.patch.object(recgov, "_get_json", side_effect=fake), \
                 mock.patch.object(texas, "_fetch", return_value=page) as ra, \
                 mock.patch.object(hipcamp, "lands_near", return_value=([], [])), \
+                mock.patch.object(campspot, "parks_near", return_value=([], [])), \
                 mock.patch("builtins.print") as p:
             rc = cli.main(["--route", "San Antonio, TX", "Austin, TX", "Dallas, TX",
                            "--route", "San Antonio, TX", "Blanco, TX", "Dallas, TX",
@@ -382,6 +383,97 @@ class HipcampTest(unittest.TestCase):
         self.assertIn("100% recommend", out)
         self.assertIn("arrive=2026-11-27&depart=2026-11-29", out)
         self.assertNotIn("The Juniper Ranch", out)  # lodging only, no electric
+
+
+CAMPSPOT_AREA = os.path.join(os.path.dirname(__file__), "..", "samples", "private", "campspot_near_canyon_lake.html")
+CAMPSPOT_PARK = os.path.join(os.path.dirname(__file__), "..", "samples", "private", "campspot_park_fimfo.html")
+
+
+def campspot_type(name, category, amenities, statuses, avg=None, low=50):
+    return {"id": 1, "name": name, "campsiteCategoryCode": category, "amenities": amenities,
+            "availability": "AVAILABLE" if "AVAILABLE" in statuses else "UNAVAILABLE",
+            "averagePricePerNight": avg, "lowestBaselinePrice": low, "failureReasons": [],
+            "campsites": [{"id": i, "name": f"S{i}", "availability": s, "amenities": amenities}
+                          for i, s in enumerate(statuses)]}
+
+
+class CampspotTest(unittest.TestCase):
+    def test_area_page_and_park_id(self):
+        self.assertEqual(campspot.area_page("Canyon Lake, TX"),
+                         "https://www.campspot.com/c/camping-in-texas/near-canyon-lake")
+        self.assertIsNone(campspot.area_page("Canyon Lake"))
+        with open(CAMPSPOT_AREA, encoding="utf-8") as f:
+            parks = campspot.parse_area_page(f.read())
+        self.assertEqual(len(parks), 10)
+        cranes = next(p for p in parks if p.slug == "cranes-mill-rv-park-canyon-lake-tx")
+        self.assertAlmostEqual(cranes.lat, 29.892, places=2)
+        self.assertEqual(cranes.starting_price, "$50")
+        with open(CAMPSPOT_PARK, encoding="utf-8") as f:
+            self.assertEqual(campspot.parse_park_id(f.read()), 55)
+
+    def test_parse_availability(self):
+        data = [
+            campspot_type("Premium Lakefront RV Site", "rv", ["30-Amp", "50-Amp", "Electricity"],
+                          ["AVAILABLE", "UNAVAILABLE", "AVAILABLE"], avg=72.5),
+            campspot_type("Primitive Tent", "tent", ["Fire Ring"], ["AVAILABLE"]),
+            campspot_type("Preferred Tent Site", "tent", ["20-Amp", "Water Hook-Up"], ["UNAVAILABLE"]),
+            campspot_type("Bluebonnet Cabin", "lodging", ["Electricity"], ["AVAILABLE"]),
+            campspot_type("Group Site", "tent", ["30-Amp"], ["AVAILABLE"]),
+        ]
+        sites = campspot.parse_availability(data, electric_only=True)
+        self.assertEqual([(s.name, s.open_count, s.amps, s.price_per_night) for s in sites],
+                         [("Premium Lakefront RV Site", 2, "30/50", 72.5)])
+        everything = campspot.parse_availability(data, standard_only=False)
+        self.assertEqual({s.name for s in everything},
+                         {"Premium Lakefront RV Site", "Primitive Tent", "Bluebonnet Cabin", "Group Site"})
+        with self.assertRaises(ValueError):
+            campspot.parse_availability({"error": "nope"})
+
+    def test_available_sites_requests(self):
+        with open(CAMPSPOT_PARK, encoding="utf-8") as f:
+            page = f.read()
+        api = json.dumps([campspot_type("Standard Tent Site", "tent", ["20-Amp"], ["AVAILABLE"])])
+        fetch = mock.Mock(side_effect=[page, api])
+        park = campspot.Park("Camp Fimfo", "camp-fimfo", 29.86, -98.16)
+        sites = campspot.available_sites(park, date(2026, 11, 27), date(2026, 11, 29), electric_only=True,
+                                         fetch=fetch, pause=0)
+        self.assertEqual([s.name for s in sites], ["Standard Tent Site"])
+        url = fetch.call_args_list[1][0][0]
+        self.assertTrue(url.startswith("https://www.campspot.com/api/gator-core/v2/availability/parks/55?"))
+        self.assertIn("checkin=2026-11-27&checkout=2026-11-29", url)
+        self.assertEqual(fetch.call_args_list[1][1]["headers"]["x-client-type"], "AGGREGATOR")
+
+    def test_cli_section(self):
+        with open(CAMPSPOT_AREA, encoding="utf-8") as f:
+            area = f.read()
+        with open(CAMPSPOT_PARK, encoding="utf-8") as f:
+            park_page = f.read()
+        api = json.dumps([campspot_type("Premium Lakefront RV Site", "rv", ["30-Amp", "Electricity"],
+                                        ["AVAILABLE"], avg=80)])
+
+        def fetch(url, timeout=40, headers=None):
+            if "/c/camping-in-texas/" in url:
+                return area
+            if "/api/gator-core/" in url:
+                return api
+            if "/park/" in url:
+                return park_page
+            raise OSError("not stubbed")
+
+        towns = {"San Antonio, TX": (29.42, -98.49), "Canyon Lake, TX": (29.88, -98.27), "Austin, TX": (30.27, -97.74)}
+        with mock.patch.object(geo, "geocode", side_effect=towns.get), mock.patch("time.sleep"), \
+                mock.patch.object(recgov, "_get_json", return_value={"total": 0, "results": []}), \
+                mock.patch.object(web, "fetch_text", side_effect=fetch), \
+                mock.patch.object(hipcamp, "lands_near", return_value=([], [])), \
+                mock.patch("builtins.print") as p:
+            rc = cli.main(["--route", "San Antonio, TX", "Canyon Lake, TX", "Austin, TX", "--no-state-parks",
+                           "--start", "2026-11-27", "--nights", "2", "--electric"])
+        out = "\n".join(str(c.args[0]) for c in p.call_args_list if c.args)
+        self.assertIn("private campground(s) on Campspot with sites open all 2 night(s)", out)
+        self.assertIn("Cranes Mill RV Park - Canyon Lake", out)
+        self.assertIn("- Premium Lakefront RV Site (rv, 30 amp): 1 open  $80/night", out)
+        self.assertIn("cranes-mill-rv-park-canyon-lake-tx?checkin=2026-11-27&checkout=2026-11-29", out)
+        self.assertEqual(rc, 0)
 
 
 class WebTest(unittest.TestCase):

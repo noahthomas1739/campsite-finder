@@ -11,7 +11,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
-from . import geo, hipcamp, recgov, texas
+from . import campspot, geo, hipcamp, recgov, texas
 
 
 def parse_args(argv=None):
@@ -52,7 +52,7 @@ def parse_args(argv=None):
     what.add_argument("--no-state-parks", action="store_true",
                       help="Skip checking Texas State Parks")
     what.add_argument("--no-private", action="store_true",
-                      help="Skip listing private campgrounds from Hipcamp")
+                      help="Skip private campgrounds (Campspot and Hipcamp)")
     what.add_argument("--workers", type=int, default=4, help="Parallel requests (be polite; default: 4)")
     args = p.parse_args(argv)
 
@@ -129,10 +129,27 @@ def main(argv=None):
         errors += [f"{r.park.name}: {r.error}" for r in park_results if r.error]
         print_state_parks(park_hits, check_in, check_out, args.show_sites, checked=len(parks))
 
+    cs_hits = []
     if not args.no_private:
         towns = [n for r in args.route for n in r] if args.route else [args.origin] if args.origin else []
         towns = list(dict.fromkeys(towns))
         if towns:
+            print(f"Checking private campgrounds on Campspot near {len(towns)} town(s) ...", file=sys.stderr)
+            cs_parks, cs_errors = campspot.parks_near(towns)
+            errors += cs_errors
+            cs_parks = [p for p in cs_parks if in_range(p.lat, p.lon)]
+            cs_results = []
+            for p in cs_parks:
+                r = campspot.ParkResult(p, *place(p.lat, p.lon))
+                try:
+                    r.sites = campspot.available_sites(p, check_in, check_out, electric_only=args.electric,
+                                                       standard_only=not args.all_site_types)
+                except Exception as e:
+                    errors.append(f"{p.name} (Campspot): {e}")
+                cs_results.append(r)
+            cs_hits = sorted((r for r in cs_results if r.sites), key=lambda r: r.distance_mi)
+            print_campspot(cs_hits, check_in, check_out, checked=len(cs_parks))
+
             print(f"Looking up private campgrounds on Hipcamp near {len(towns)} town(s) ...", file=sys.stderr)
             lands, land_errors = hipcamp.lands_near(towns, pause=lambda: time.sleep(2))
             errors += land_errors
@@ -148,7 +165,7 @@ def main(argv=None):
         print(f"\n{len(errors)} place(s) could not be checked:", file=sys.stderr)
         for e in errors[:8]:
             print(f"  - {e}"[:200], file=sys.stderr)
-    return 0 if hits or park_hits else 1
+    return 0 if hits or park_hits or cs_hits else 1
 
 
 def radius_area(args, stay):
@@ -248,6 +265,25 @@ def print_state_parks(hits, check_in, check_out, show_sites, checked):
             print(f"    - {loop}site {s.name}: {s.site_type}{amps}{rate}")
         if len(r.sites) > show_sites:
             print(f"    ... and {len(r.sites) - show_sites} more")
+        print()
+
+
+def print_campspot(hits, check_in, check_out, checked):
+    if not checked:
+        return
+    if not hits:
+        print(f"Campspot: none of the {checked} private campground(s) in range have a site open for every night.\n")
+        return
+    nights = (check_out - check_in).days
+    print(f"{len(hits)} private campground(s) on Campspot with sites open all {nights} night(s):\n")
+    for r in hits:
+        p = r.park
+        print(f"{p.name}  ({where(r)})")
+        print(f"  {sum(s.open_count for s in r.sites)} site(s) open  ->  {p.url(check_in, check_out)}")
+        for s in r.sites:
+            price = f"  ${s.price_per_night:.0f}/night" if s.price_per_night else ""
+            amps = f", {s.amps} amp" if s.amps else ""
+            print(f"    - {s.name} ({s.category}{amps}): {s.open_count} open{price}")
         print()
 
 
