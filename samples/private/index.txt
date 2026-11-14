@@ -1,2 +1,8 @@
 campspot_near_canyon_lake	200 (curl)	299476 bytes	https://www.campspot.com/c/camping-in-texas/near-canyon-lake
-campspot_park_fimfo	200 (curl)	477761 bytes	https://www.campspot.com/park/camp-fimfo
+campspot_park_fimfo	200 (curl)	477940 bytes	https://www.campspot.com/park/camp-fimfo
+campspot_dates_bks-campground-new-braunfels-tx	200 (curl)	144593 bytes	https://www.campspot.com/park/bks-campground-new-braunfels-tx?checkin=2026-11-27&checkout=2026-11-29&adults=2&children=0&pets=0
+campspot_dates_camp-fimfo	200 (curl)	478109 bytes	https://www.campspot.com/park/camp-fimfo?checkin=2026-11-27&checkout=2026-11-29&adults=2&children=0&pets=0
+campspot_dates_corner-star-cabin-rv-new-braunfels-tx	200 (curl)	127125 bytes	https://www.campspot.com/park/corner-star-cabin-rv-new-braunfels-tx?checkin=2026-11-27&checkout=2026-11-29&adults=2&children=0&pets=0
+campspot_dates_cranes-mill-rv-park-canyon-lake-tx	200 (curl)	174781 bytes	https://www.campspot.com/park/cranes-mill-rv-park-canyon-lake-tx?checkin=2026-11-27&checkout=2026-11-29&adults=2&children=0&pets=0
+campspot_dates_kl-ranch-camp-on-the-river	200 (curl)	135423 bytes	https://www.campspot.com/park/kl-ranch-camp-on-the-river?checkin=2026-11-27&checkout=2026-11-29&adults=2&children=0&pets=0
+campspot_dates_lairds-hideaway-rv-park-and-pickleball-courts	200 (curl)	148116 bytes	https://www.campspot.com/park/lairds-hideaway-rv-park-and-pickleball-courts?checkin=2026-11-27&checkout=2026-11-29&adults=2&children=0&pets=0
