@@ -108,6 +108,7 @@ To change the starting point or distance, edit the `snapshot` command in the wor
 | `--max-campgrounds` | 80 | Cap on Recreation.gov campgrounds checked, nearest first |
 | `--show-sites` | 5 | Sites listed per campground |
 | `--no-state-parks` | off | Skip checking Texas State Parks |
+| `--no-private` | off | Skip the Hipcamp private-campground listings |
 
 The exit code is 0 when something is found and 1 when nothing is, so you can
 run it from cron as an alert.
@@ -125,6 +126,12 @@ run it from cron as an alert.
 - **Coverage:** live availability is checked for recreation.gov only. That
   includes federal sites such as National Forests, Army Corps of Engineers
   lakes, and National Parks.
+- **Private campgrounds (Hipcamp):** for each town you search from (`--from`, or each
+  `--route` stop), the tool reads Hipcamp's town page and lists the private campgrounds in range,
+  with rating, starting price, and whether they have electric hookups (`--electric` keeps only
+  those). Hipcamp's page doesn't include availability for specific dates, so these are listed
+  with a link that opens your dates instead of being confirmed open. Use `--no-private` to skip
+  them. Campspot campgrounds aren't included yet.
 - **Texas State Parks** book through ReserveAmerica, which has no public API.
   Its campsite search page (`reserveamerica.com/explore/<park>/TX/<id>/campsites`)
   embeds its results as JSON, including each site's type, hookups and nightly

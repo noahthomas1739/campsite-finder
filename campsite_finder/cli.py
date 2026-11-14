@@ -11,7 +11,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
-from . import geo, recgov, texas
+from . import geo, hipcamp, recgov, texas
 
 
 def parse_args(argv=None):
@@ -51,6 +51,8 @@ def parse_args(argv=None):
     what.add_argument("--show-sites", type=int, default=5, help="Sites to list per campground (default: 5)")
     what.add_argument("--no-state-parks", action="store_true",
                       help="Skip checking Texas State Parks")
+    what.add_argument("--no-private", action="store_true",
+                      help="Skip listing private campgrounds from Hipcamp")
     what.add_argument("--workers", type=int, default=4, help="Parallel requests (be polite; default: 4)")
     args = p.parse_args(argv)
 
@@ -126,6 +128,21 @@ def main(argv=None):
         park_hits = sorted((r for r in park_results if r.sites), key=lambda r: r.distance_mi)
         errors += [f"{r.park.name}: {r.error}" for r in park_results if r.error]
         print_state_parks(park_hits, check_in, check_out, args.show_sites, checked=len(parks))
+
+    if not args.no_private:
+        towns = [n for r in args.route for n in r] if args.route else [args.origin] if args.origin else []
+        towns = list(dict.fromkeys(towns))
+        if towns:
+            print(f"Looking up private campgrounds on Hipcamp near {len(towns)} town(s) ...", file=sys.stderr)
+            lands, land_errors = hipcamp.lands_near(towns, pause=lambda: time.sleep(2))
+            errors += land_errors
+            land_hits = sorted(
+                (hipcamp.LandResult(l, *place(l.lat, l.lon)) for l in lands
+                 if in_range(l.lat, l.lon)
+                 and (l.electric or not args.electric)
+                 and (args.all_site_types or not l.lodging_only)),
+                key=lambda r: r.distance_mi)
+            print_private(land_hits, check_in, check_out, args.electric)
 
     if errors:
         print(f"\n{len(errors)} place(s) could not be checked:", file=sys.stderr)
@@ -232,6 +249,22 @@ def print_state_parks(hits, check_in, check_out, show_sites, checked):
         if len(r.sites) > show_sites:
             print(f"    ... and {len(r.sites) - show_sites} more")
         print()
+
+
+def print_private(hits, check_in, check_out, electric):
+    if not hits:
+        print("Hipcamp: no private campgrounds found in range.\n")
+        return
+    print(f"{len(hits)} private campground(s) on Hipcamp{' with electric hookups' if electric else ''}. "
+          f"Availability isn't checked; the link opens your dates:\n")
+    for r in hits:
+        l = r.land
+        rating = f"{l.recommends_pct}% recommend ({l.recommends_count})" if l.recommends_pct is not None else "new"
+        kinds = "/".join(k for k in l.accommodations if k in ("tent", "rv", "house")).replace("house", "lodging")
+        print(f"{l.name}  ({where(r)}{'; ' + l.city if l.city else ''})")
+        print(f"  {rating} · from {l.price or '?'}/night · {kinds}  ->  {l.url(check_in, check_out)}")
+    print()
+
 
 if __name__ == "__main__":
     sys.exit(main())

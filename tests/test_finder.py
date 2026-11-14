@@ -4,7 +4,7 @@ import unittest
 from datetime import date
 from unittest import mock
 
-from campsite_finder import cli, geo, recgov, snapshot, texas
+from campsite_finder import cli, geo, hipcamp, recgov, snapshot, texas, web
 
 
 def availability(pairs):
@@ -304,6 +304,7 @@ class RouteTest(unittest.TestCase):
         with mock.patch.object(geo, "geocode", side_effect=towns.get), mock.patch("time.sleep"), \
                 mock.patch.object(recgov, "_get_json", side_effect=fake), \
                 mock.patch.object(texas, "_fetch", return_value=page) as ra, \
+                mock.patch.object(hipcamp, "lands_near", return_value=([], [])), \
                 mock.patch("builtins.print") as p:
             rc = cli.main(["--route", "San Antonio, TX", "Austin, TX", "Dallas, TX",
                            "--route", "San Antonio, TX", "Blanco, TX", "Dallas, TX",
@@ -327,6 +328,82 @@ class RouteTest(unittest.TestCase):
     def test_route_needs_two_places(self):
         with self.assertRaises(SystemExit), mock.patch("sys.stderr"):
             cli.parse_args(["--route", "Austin, TX"])
+
+
+HIPCAMP_SAMPLE = os.path.join(os.path.dirname(__file__), "..", "samples", "private", "hipcamp_canyon_lake.html")
+
+
+class HipcampTest(unittest.TestCase):
+    def test_town_page(self):
+        self.assertEqual(hipcamp.town_page("Canyon Lake, TX"),
+                         "https://www.hipcamp.com/en-US/d/united-states/texas/canyon-lake/camping/all")
+        self.assertIsNone(hipcamp.town_page("Austin"))
+        self.assertIsNone(hipcamp.town_page("Boise, ID"))
+
+    def test_real_canyon_lake_page(self):
+        with open(HIPCAMP_SAMPLE, encoding="utf-8") as f:
+            lands = hipcamp.parse_town_page(f.read())
+        self.assertEqual(len(lands), 20)
+        juniper = next(l for l in lands if l.name == "The Juniper Ranch & Retreat")
+        self.assertTrue(juniper.lodging_only)
+        self.assertFalse(juniper.electric)
+        b2 = next(l for l in lands if l.name == "B2 Hideaway")
+        self.assertTrue(b2.electric)
+        self.assertFalse(b2.lodging_only)
+        self.assertEqual(b2.recommends_pct, 100)
+        self.assertEqual(b2.url(date(2026, 11, 27), date(2026, 11, 29)),
+                         "https://www.hipcamp.com" + b2.path + "?arrive=2026-11-27&depart=2026-11-29")
+
+    def test_lands_near_dedupes_and_reports_errors(self):
+        with open(HIPCAMP_SAMPLE, encoding="utf-8") as f:
+            page = f.read()
+
+        def fetch(url):
+            if "blanco" in url:
+                raise OSError("boom")
+            return page
+
+        lands, errors = hipcamp.lands_near(["Canyon Lake, TX", "Johnson City, TX", "Blanco, TX", "Austin"], fetch=fetch)
+        self.assertEqual(len(lands), 20)
+        self.assertEqual(errors, ["Hipcamp (Blanco, TX): boom"])
+
+    def test_cli_lists_private_electric_campgrounds(self):
+        with open(HIPCAMP_SAMPLE, encoding="utf-8") as f:
+            page = f.read()
+        towns = {"San Antonio, TX": (29.42, -98.49), "Canyon Lake, TX": (29.88, -98.27), "Austin, TX": (30.27, -97.74)}
+        with mock.patch.object(geo, "geocode", side_effect=towns.get), mock.patch("time.sleep"), \
+                mock.patch.object(recgov, "_get_json", return_value={"total": 0, "results": []}), \
+                mock.patch.object(web, "fetch_text", return_value=page), \
+                mock.patch("builtins.print") as p:
+            cli.main(["--route", "San Antonio, TX", "Canyon Lake, TX", "Austin, TX", "--no-state-parks",
+                      "--start", "2026-11-27", "--nights", "2", "--electric"])
+        out = "\n".join(str(c.args[0]) for c in p.call_args_list if c.args)
+        self.assertIn("B2 Hideaway", out)
+        self.assertIn("100% recommend", out)
+        self.assertIn("arrive=2026-11-27&depart=2026-11-29", out)
+        self.assertNotIn("The Juniper Ranch", out)  # lodging only, no electric
+
+
+class WebTest(unittest.TestCase):
+    def test_curl_fallback_on_tls_error(self):
+        import ssl
+        import urllib.error
+        err = urllib.error.URLError(ssl.SSLError(1, "[SSL: TLSV1_ALERT_PROTOCOL_VERSION]"))
+        done = mock.Mock(stdout=b"<html>ok</html>")
+        with mock.patch("urllib.request.urlopen", side_effect=err), \
+                mock.patch("shutil.which", return_value="/usr/bin/curl"), \
+                mock.patch("subprocess.run", return_value=done) as run:
+            self.assertEqual(web.fetch_text("https://www.campspot.com/x"), "<html>ok</html>")
+        self.assertEqual(run.call_args[0][0][0], "curl")
+        self.assertEqual(run.call_args[0][0][-1], "https://www.campspot.com/x")
+
+    def test_other_errors_are_not_retried(self):
+        import urllib.error
+        with mock.patch("urllib.request.urlopen", side_effect=urllib.error.URLError("no route")), \
+                mock.patch("subprocess.run") as run:
+            with self.assertRaises(urllib.error.URLError):
+                web.fetch_text("https://example.com")
+        run.assert_not_called()
 
 
 class SnapshotTest(unittest.TestCase):

@@ -1,7 +1,8 @@
 """Save real Campspot and Hipcamp pages so private-campground lookups can be built against them.
 
 Run from the repo root, then push the samples folder:
-    python3 tools/capture_private.py
+    python3 tools/capture_private.py              # everything
+    python3 tools/capture_private.py campspot     # just the Campspot pages
 
 Writes samples/private/*.html|json plus index.txt and findings.txt. About 20 requests,
 one at a time, with pauses between them.
@@ -10,6 +11,9 @@ one at a time, with pauses between them.
 import http.cookiejar
 import os
 import re
+import shutil
+import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -46,6 +50,15 @@ def get(name, url, ext="html"):
         status, final, body = e.code, e.geturl(), e.read()
     except Exception as e:
         status, final, body = "ERROR", url, repr(e).encode()
+        # macOS's built-in Python can't speak the TLS version some sites require; curl can.
+        if "SSL" in repr(e) and shutil.which("curl"):
+            cmd = ["curl", "-sSL", "--compressed", "--max-time", "40", "-w", "\n%{http_code} %{url_effective}"]
+            for k, v in HEADERS.items():
+                cmd += ["-H", f"{k}: {v}"]
+            out = subprocess.run(cmd + [url], capture_output=True)
+            raw, _, tail = out.stdout.rpartition(b"\n")
+            code, _, eff = tail.decode().partition(" ")
+            status, final, body = f"{code} (curl)", eff or url, raw or out.stderr
     with open(os.path.join(OUT, f"{name}.{ext}"), "wb") as f:
         f.write(body)
     line = f"{name}\t{status}\t{len(body)} bytes\t{final}"
@@ -64,7 +77,8 @@ def note(label, items):
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    pages = {name: get(name, url) for name, url in START}
+    only = sys.argv[1] if len(sys.argv) > 1 else ""
+    pages = {name: (get(name, url) if name.startswith(only) else "") for name, url in START}
 
     # Campspot: booking slugs linked from the listing and park pages.
     campspot_text = pages["campspot_near_canyon_lake"] + pages["campspot_park_fimfo"]
@@ -82,7 +96,7 @@ def main():
 
     # The site's JavaScript names the APIs it calls; list the ones that look like availability lookups.
     api_urls, api_paths = set(), set()
-    for name in list(pages) + [n for n in os.listdir(OUT) if n.startswith("campspot_book_")]:
+    for name in [n for n in pages if pages[n]] + [n for n in os.listdir(OUT) if n.startswith("campspot_book_")]:
         text = pages.get(name) or open(os.path.join(OUT, name), encoding="utf-8", errors="replace").read()
         host = "https://www.hipcamp.com" if name.startswith("hipcamp") else "https://www.campspot.com"
         for src in re.findall(r'<script[^>]+src="([^"]+\.js[^"]*)"', text)[:25]:
@@ -91,7 +105,10 @@ def main():
                 with opener.open(urllib.request.Request(js_url, headers=HEADERS), timeout=40) as r:
                     js = r.read().decode("utf-8", "replace")
             except Exception:
-                continue
+                if not shutil.which("curl"):
+                    continue
+                js = subprocess.run(["curl", "-sSL", "--compressed", "--max-time", "40", "-A", HEADERS["User-Agent"],
+                                     js_url], capture_output=True).stdout.decode("utf-8", "replace")
             api_urls.update(re.findall(r'https://[A-Za-z0-9.-]*(?:api|insite)[A-Za-z0-9.-]*\.[a-z]+[A-Za-z0-9/_.{}$-]*', js))
             api_paths.update(re.findall(r'["\'`](/api/[A-Za-z0-9/_.{}$:-]{3,80})', js))
             time.sleep(0.5)
@@ -100,6 +117,8 @@ def main():
 
     json_tag = re.compile(r'<script[^>]*type="application/json"[^>]*>|<script[^>]*id="__NEXT_DATA__"[^>]*>')
     for name, text in pages.items():
+        if not text:
+            continue
         tags = [re.search(r'id="([^"]+)"', t) for t in json_tag.findall(text)]
         note(f"embedded JSON script tags in {name}", [t.group(1) for t in tags if t])
 
