@@ -37,6 +37,23 @@ START = [
      f"https://www.hipcamp.com/en-US/d/united-states/texas/johnson-city/camping/all?arrive={CHECKIN}&depart={CHECKOUT}"),
 ]
 
+# Pages can embed the site's own API keys (e.g. a Mapbox token for its maps). They aren't
+# needed for parsing, and GitHub rightly refuses pushes containing them, so blank them out.
+SECRET_PATTERNS = [
+    re.compile(rb"\b(?:pk|sk|tk)\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"),  # Mapbox
+    re.compile(rb"\bAIza[0-9A-Za-z_-]{35}\b"),  # Google API keys
+    re.compile(rb"\b(?:sk|pk|rk)_(?:live|test)_[0-9A-Za-z]{10,}\b"),  # Stripe
+    re.compile(rb"\bgh[pousr]_[0-9A-Za-z]{30,}\b"),  # GitHub
+    re.compile(rb"\bAKIA[0-9A-Z]{16}\b"),  # AWS access key IDs
+]
+
+
+def redact(body):
+    for pattern in SECRET_PATTERNS:
+        body = pattern.sub(b"REDACTED", body)
+    return body
+
+
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 index, findings = [], []
 
@@ -59,6 +76,7 @@ def get(name, url, ext="html"):
             raw, _, tail = out.stdout.rpartition(b"\n")
             code, _, eff = tail.decode().partition(" ")
             status, final, body = f"{code} (curl)", eff or url, raw or out.stderr
+    body = redact(body)
     with open(os.path.join(OUT, f"{name}.{ext}"), "wb") as f:
         f.write(body)
     line = f"{name}\t{status}\t{len(body)} bytes\t{final}"
