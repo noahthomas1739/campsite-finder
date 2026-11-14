@@ -111,6 +111,28 @@ def main():
         get(f"campspot_dates_{slug}",
             f"https://www.campspot.com/park/{slug}?checkin={CHECKIN}&checkout={CHECKOUT}&adults=2&children=0&pets=0")
 
+    # The park page fills in dated availability in the browser; save the scripts that do it
+    # (and the modules they import) so the API request they make can be read.
+    fimfo = pages.get("campspot_park_fimfo") or ""
+    wanted = [u for u in re.findall(r'component-url="([^"]+)"', fimfo)
+              if any(k in u for k in ("SiteAvailability", "BookingPanel"))]
+    seen = set()
+    while wanted and len(seen) < 25:
+        path = wanted.pop(0)
+        if path in seen:
+            continue
+        seen.add(path)
+        js = get("campspot_js_" + os.path.basename(path).replace(".js", ""), "https://www.campspot.com" + path, ext="js")
+        for imp in re.findall(r'from\s*"(\./[^"]+\.js)"|import\(\s*"(\./[^"]+\.js)"\s*\)', js):
+            rel = imp[0] or imp[1]
+            wanted.append(os.path.join(os.path.dirname(path), rel[2:]))
+    gator = set()
+    for name in os.listdir(OUT):
+        if name.startswith("campspot_js_"):
+            text = open(os.path.join(OUT, name), encoding="utf-8", errors="replace").read()
+            gator.update(m.strip() for m in re.findall(r'["`\'](/[A-Za-z0-9/_${}.:?=&-]*(?:avail|search|site|park|campsite)[A-Za-z0-9/_${}.:?=&-]*)["`\']', text, re.I))
+    note("paths in Campspot availability scripts", gator)
+
     # Booking pages for a few parks, with the stay dates in the URL.
     for slug in book_slugs[:3]:
         get(f"campspot_book_{slug}", f"https://www.campspot.com/book/{slug}")
