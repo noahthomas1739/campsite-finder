@@ -106,6 +106,11 @@ def main():
     note("campspot booking slugs", book_slugs)
     note("campspot park slugs", park_slugs)
 
+    # Park pages with the stay dates filled in, as the page's own "Check Availability" form submits them.
+    for slug in [p for p in park_slugs if p != "opengraph"][:6]:
+        get(f"campspot_dates_{slug}",
+            f"https://www.campspot.com/park/{slug}?checkin={CHECKIN}&checkout={CHECKOUT}&adults=2&children=0&pets=0")
+
     # Booking pages for a few parks, with the stay dates in the URL.
     for slug in book_slugs[:3]:
         get(f"campspot_book_{slug}", f"https://www.campspot.com/book/{slug}")
