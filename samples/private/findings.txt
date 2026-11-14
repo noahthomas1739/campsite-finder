@@ -1,37 +1,38 @@
 ## campspot booking slugs (0)
 
-## campspot park slugs (0)
+## campspot park slugs (14)
+bks-campground-new-braunfels-tx
+camp-fimfo
+corner-star-cabin-rv-new-braunfels-tx
+cranes-mill-rv-park-canyon-lake-tx
+kl-ranch-camp-on-the-river
+lairds-hideaway-rv-park-and-pickleball-courts
+lazy-l-and-l-campground
+longhorn-rv-resort-niederwald-tx
+opengraph
+rio-guadalupe-resort
+soggy-dollar-camp
+summit-vacation-rv-resort
+treeside-rv-resort-newbraunfels-tx
+yogi-bear-jellystone-park-hill-country
 
-## API hosts/URLs seen in JavaScript (9)
-https://api.cloudinary.com/v1_1/hipcamp/upload
-https://api.hipcamp.com/graphql
-https://api.mapbox.com
-https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURI
-https://api.mapbox.com/mapbox-gl-js/draco_decoder_gltf_v1.5.6.wasm
-https://api.mapbox.com/mapbox-gl-js/meshopt_base_v0.20.wasm
-https://api.mapbox.com/mapbox-gl-js/meshopt_simd_v0.20.wasm
-https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.2.3/mapbox-gl-rtl-text.js
-https://api.mapbox.com/styles/v1/${i
+## API hosts/URLs seen in JavaScript (12)
+https://api.disqometer.com/
+https://api.nimblecapture.com/static/file/cnt.1.7.2.4.js
+https://api.nimblecapture.com/static/file/cnt.1.7.2.7.js
+https://api.nimblecapture.com/static/file/rcx-cd-v3.js
+https://api.wire.threatspike.com/device/inject.js
+https://consent.api.osano.com
+https://disclosure.api.osano.com
+https://fonts.googleapis.com/css
+https://lookups.api.osano.com
+https://scripts.api.disqometer.com/
+https://services.sdiapi.com/
+https://tattle.api.osano.com
 
-## API paths seen in JavaScript (10)
-/api/1/item/
-/api/analytics/hc_impressions_sp
-/api/eval/
-/api/features/
-/api/hipbook/parks/${e}/switch_current_park
-/api/v2/users
-/api/v2/users/login-verification
-/api/v2/users/login-verification/resend
-/api/v2/users/oauth/google_oauth2
-/api/v2/users/sign-in
+## API paths seen in JavaScript (0)
 
 ## embedded JSON script tags in campspot_near_canyon_lake (0)
 
 ## embedded JSON script tags in campspot_park_fimfo (0)
-
-## embedded JSON script tags in hipcamp_canyon_lake (1)
-__NEXT_DATA__
-
-## embedded JSON script tags in hipcamp_johnson_city (1)
-__NEXT_DATA__
 
