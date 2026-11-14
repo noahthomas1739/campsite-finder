@@ -53,3 +53,36 @@ def bearing_deg(lat1, lon1, lat2, lon2):
 def within_heading(bearing, heading, spread):
     """True if bearing is within +/- spread degrees of heading."""
     return abs((bearing - heading + 180) % 360 - 180) <= spread
+
+
+def _plane(lat, lon, lat0):
+    """Local flat-earth miles; fine for the few hundred miles of a driving route."""
+    return lon * 69.17 * math.cos(math.radians(lat0)), lat * 69.0
+
+
+def route_position(lat, lon, route):
+    """(miles off the route, miles along it from the start to the nearest point) for a
+    point and a route given as [(lat, lon), ...] waypoints joined by straight lines."""
+    px, py = _plane(lat, lon, lat)
+    best_off, best_along, travelled = None, 0.0, 0.0
+    for (alat, alon), (blat, blon) in zip(route, route[1:]):
+        ax, ay = _plane(alat, alon, lat)
+        bx, by = _plane(blat, blon, lat)
+        dx, dy = bx - ax, by - ay
+        seg = math.hypot(dx, dy)
+        t = 0.0 if seg == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / seg ** 2))
+        off = math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+        if best_off is None or off < best_off:
+            best_off, best_along = off, travelled + t * seg
+        travelled += seg
+    return best_off, best_along
+
+
+def points_along(route, every_mi):
+    """Waypoints plus extra points so no two consecutive points are more than every_mi apart."""
+    pts = [route[0]]
+    for (alat, alon), (blat, blon) in zip(route, route[1:]):
+        steps = max(1, math.ceil(haversine_mi(alat, alon, blat, blon) / every_mi))
+        for i in range(1, steps + 1):
+            pts.append((alat + (blat - alat) * i / steps, alon + (blon - alon) * i / steps))
+    return pts

@@ -64,6 +64,19 @@ Mother Neff, Lake Bob Sandlin, and Daingerfield are also in the list. They're ju
 2 hours, so they appear with `--drive-hours 2.5`. A search in every direction loads more pages,
 so it takes a few minutes.
 
+## Along a drive
+
+Give the towns on the way in order, and the tool searches everything within `--detour-hours`
+(default 1) of that route. Results are listed in trip order. Repeat `--route` to cover alternative
+routes in one search. For example, San Antonio to Dallas the weekend after Thanksgiving, either
+up I-35 or through the Hill Country:
+
+```bash
+python3 -m campsite_finder --electric --start 2026-11-27 --nights 2 --show-sites 50 \
+  --route "San Antonio, TX" "New Braunfels, TX" "Austin, TX" "Temple, TX" "Waco, TX" "Dallas, TX" \
+  --route "San Antonio, TX" "Blanco, TX" "Johnson City, TX" "Marble Falls, TX" "Lampasas, TX" "Hamilton, TX" "Stephenville, TX" "Dallas, TX"
+```
+
 ## Web page (GitHub Pages)
 
 `site/index.html` is a page anyone can open to see open sites without running anything. A

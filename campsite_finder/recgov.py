@@ -56,6 +56,7 @@ class Site:
 class CampgroundResult:
     campground: Campground
     distance_mi: float
+    off_route_mi: float | None = None
     sites: list = field(default_factory=list)
     error: str | None = None
 

@@ -61,6 +61,7 @@ class StateParkSite:
 class StateParkResult:
     park: StatePark
     distance_mi: float
+    off_route_mi: float | None = None
     sites: list = field(default_factory=list)
     error: str | None = None
 
@@ -82,6 +83,34 @@ PARKS = [
               notes="full hookup sites"),
     StatePark("Bonham State Park", "bonham-state-park", 1200112, 33.55, -96.14,
               notes="electric, tent-only electric and full hookup sites"),
+    # Central Texas / Hill Country, for trips between San Antonio, Austin and DFW.
+    StatePark("Guadalupe River State Park", "guadalupe-river-state-park", 1200059, 29.86, -98.50,
+              notes="river swimming, cypress-lined banks"),
+    StatePark("Blanco State Park", "blanco-state-park", 1200053, 30.09, -98.43,
+              notes="small park on the Blanco River in town"),
+    StatePark("Pedernales Falls State Park", "pedernales-falls-state-park", 1200068, 30.31, -98.25,
+              notes="limestone falls on the Pedernales River"),
+    StatePark("Inks Lake State Park", "inks-lake-state-park", 1200062, 30.74, -98.37,
+              notes="pink granite shoreline, many lakefront sites"),
+    StatePark("Enchanted Rock State Natural Area", "enchanted-rock-state-natural-area", 1200056, 30.50, -98.82,
+              notes="granite dome; tent sites only, no electric"),
+    StatePark("Colorado Bend State Park", "colorado-bend-state-park", 1200055, 31.02, -98.44,
+              notes="Gorman Falls; primitive riverside sites, no electric"),
+    StatePark("McKinney Falls State Park", "mckinney-falls-state-park", 1200066, 30.18, -97.72,
+              notes="waterfalls on Onion Creek, inside Austin"),
+    StatePark("Lockhart State Park", "lockhart-state-park", 1200040, 29.85, -97.70),
+    StatePark("Palmetto State Park", "palmetto-state-park", 1200043, 29.59, -97.58,
+              notes="palms and swamp on the San Marcos River"),
+    StatePark("Bastrop State Park", "bastrop-state-park", 1200052, 30.11, -97.29,
+              notes="Lost Pines forest"),
+    StatePark("Buescher State Park", "buescher-state-park", 1200054, 30.04, -97.16,
+              notes="Lost Pines, small lake"),
+    StatePark("Government Canyon State Natural Area", "government-canyon-state-natural-area", 1200058,
+              29.55, -98.76, notes="San Antonio; walk-in sites, weekends only"),
+    StatePark("Garner State Park", "garner-state-park", 1200057, 29.60, -99.74,
+              notes="Frio River; far west of San Antonio"),
+    StatePark("Lost Maples State Natural Area", "lost-maples-state-natural-area", 1200064, 29.81, -99.57,
+              notes="fall color; far west of San Antonio"),
     # North, west and south of DFW (use --direction any, or north/west/south).
     StatePark("Lake Arrowhead State Park", "lake-arrowhead-state-park", 1200099, 33.76, -98.39,
               notes="electric sites; near Wichita Falls"),

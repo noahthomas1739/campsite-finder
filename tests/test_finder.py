@@ -268,6 +268,67 @@ class EndToEndTest(unittest.TestCase):
         self.assertEqual(checked, ["3", "2"])
 
 
+class RouteTest(unittest.TestCase):
+    SA, AUSTIN, DALLAS = (29.42, -98.49), (30.27, -97.74), (32.78, -96.80)
+
+    def test_route_position(self):
+        route = [self.SA, self.AUSTIN, self.DALLAS]
+        off, along = geo.route_position(30.31, -98.25, route)  # Pedernales Falls, west of Austin
+        self.assertAlmostEqual(off, 26, delta=4)
+        self.assertAlmostEqual(along, 57, delta=6)
+        off, along = geo.route_position(*self.DALLAS, route)
+        self.assertLess(off, 0.5)
+        self.assertAlmostEqual(along, geo.haversine_mi(*self.SA, *self.AUSTIN)
+                               + geo.haversine_mi(*self.AUSTIN, *self.DALLAS), delta=5)
+
+    def test_points_along(self):
+        pts = geo.points_along([self.SA, self.DALLAS], 60)
+        self.assertEqual(pts[0], self.SA)
+        self.assertEqual(pts[-1], self.DALLAS)
+        gaps = [geo.haversine_mi(*a, *b) for a, b in zip(pts, pts[1:])]
+        self.assertTrue(all(g <= 60 for g in gaps))
+
+    def test_route_mode_end_to_end(self):
+        towns = {"San Antonio, TX": self.SA, "Blanco, TX": (30.10, -98.42), "Austin, TX": self.AUSTIN,
+                 "Dallas, TX": self.DALLAS}
+        search = {"total": 2, "results": [
+            {"entity_id": "1", "name": "POTTERS CREEK", "latitude": "29.90", "longitude": "-98.27"},  # Canyon Lake
+            {"entity_id": "2", "name": "FAR WEST", "latitude": "30.5", "longitude": "-100.5"},
+        ]}
+
+        def fake(path, params=None):
+            return search if path == "/api/search" else OCT
+
+        page = ra_page([ra_record("012", "Campsite Electric", [("2026-11-27", "AVAILABLE"),
+                                                               ("2026-11-28", "AVAILABLE")], amps="50")])
+        with mock.patch.object(geo, "geocode", side_effect=towns.get), mock.patch("time.sleep"), \
+                mock.patch.object(recgov, "_get_json", side_effect=fake), \
+                mock.patch.object(texas, "_fetch", return_value=page) as ra, \
+                mock.patch("builtins.print") as p:
+            rc = cli.main(["--route", "San Antonio, TX", "Austin, TX", "Dallas, TX",
+                           "--route", "San Antonio, TX", "Blanco, TX", "Dallas, TX",
+                           "--start", "2026-11-27", "--nights", "2", "--electric", "--workers", "1"])
+        out = "\n".join(str(c.args[0]) for c in p.call_args_list if c.args)
+        self.assertEqual(rc, 0)
+        self.assertIn("Guadalupe River State Park  (30 mi along the route, 3 mi off it)", out)
+        checked = {c[0][0].split("/explore/")[1].split("/")[0] for c in ra.call_args_list}
+        self.assertIn("guadalupe-river-state-park", checked)
+        self.assertIn("inks-lake-state-park", checked)
+        self.assertIn("enchanted-rock-state-natural-area", checked)  # only near the Blanco route
+        self.assertNotIn("garner-state-park", checked)
+        self.assertNotIn("lake-arrowhead-state-park", checked)
+        self.assertNotIn("Far West", out)
+
+    def test_route_labels(self):
+        r = texas.StateParkResult(texas.PARKS[0], 64.4, 8.2)
+        self.assertEqual(cli.where(r), "64 mi along the route, 8 mi off it")
+        self.assertEqual(cli.where(texas.StateParkResult(texas.PARKS[0], 22.0)), "22 mi straight-line")
+
+    def test_route_needs_two_places(self):
+        with self.assertRaises(SystemExit), mock.patch("sys.stderr"):
+            cli.parse_args(["--route", "Austin, TX"])
+
+
 class SnapshotTest(unittest.TestCase):
     def test_recgov_site_nights(self):
         with mock.patch.object(recgov, "_get_json", return_value=OCT):
