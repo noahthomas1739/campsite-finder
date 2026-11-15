@@ -71,7 +71,10 @@ def parse_town_page(page_html):
     m = re.search(r'<script[^>]*id="__NEXT_DATA__"[^>]*>(.*?)</script>', page_html, re.S)
     if not m:
         raise ValueError("Hipcamp page had no __NEXT_DATA__ (blocked, or the page changed)")
-    place = json.loads(m.group(1))["props"]["pageProps"]["query"]["place"]
+    props = json.loads(m.group(1)).get("props", {}).get("pageProps", {})
+    place = (props.get("query") or {}).get("place")
+    if not place:  # e.g. small towns get a different page layout with no listing data
+        return []
     lands = []
     for n in (place.get("discoverHipcampLands") or {}).get("nodes") or []:
         coord = n.get("coordinate") or {}

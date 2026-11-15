@@ -355,6 +355,10 @@ class HipcampTest(unittest.TestCase):
         self.assertEqual(b2.url(date(2026, 11, 27), date(2026, 11, 29)),
                          "https://www.hipcamp.com" + b2.path + "?arrive=2026-11-27&depart=2026-11-29")
 
+    def test_page_without_listings_is_empty_not_an_error(self):
+        page = '<script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"other":1}}}</script>'
+        self.assertEqual(hipcamp.parse_town_page(page), [])
+
     def test_lands_near_dedupes_and_reports_errors(self):
         with open(HIPCAMP_SAMPLE, encoding="utf-8") as f:
             page = f.read()
